@@ -3,8 +3,11 @@
 import { useState, useMemo, useEffect, useRef } from "react"
 import Link from "next/link"
 import { Card, CardHeader, CardTitle, CardDescription, CardAction } from "@/components/ui/card"
-import { ExternalLink } from "lucide-react"
+import { ExternalLink, Heart, ThumbsUp } from "lucide-react"
 import { useFaviconService, getFaviconUrl } from "@/hooks/use-favicon-service"
+import { useFavorites } from "@/hooks/use-favorites"
+import { useLikes } from "@/hooks/use-likes"
+import { Button } from "@/components/ui/button"
 
 // 生成首字母图标（shadcn/ui 简洁风格）
 function getInitialIcon(name: string) {
@@ -45,6 +48,9 @@ export function SiteCard({ site }: SiteCardProps) {
   const [imageLoaded, setImageLoaded] = useState(false)
   const hasTriedLoad = useRef(false)
   const { service } = useFaviconService()
+  const { toggleFavorite, isFavorite, mounted: favMounted } = useFavorites()
+  const { toggleLike, isLiked, mounted: likeMounted } = useLikes()
+  const [likesCount, setLikesCount] = useState(0)
 
   // 使用 useMemo 优化 favicon URL 计算
   // 优先级：用户配置 > 选中的 Favicon 服务
@@ -95,6 +101,30 @@ export function SiteCard({ site }: SiteCardProps) {
     }
   }
 
+  const handleFavorite = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    e.preventDefault()
+    toggleFavorite(site.id)
+  }
+
+  const handleLike = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    e.preventDefault()
+    const wasLiked = isLiked(site.id, 'site')
+    toggleLike(site.id, 'site')
+    try {
+      const response = await fetch(`/api/likes/site/${site.id}`, {
+        method: wasLiked ? 'DELETE' : 'POST',
+      })
+      const result = await response.json()
+      if (result.success && result.likesCount !== undefined) {
+        setLikesCount(result.likesCount)
+      }
+    } catch (error) {
+      toggleLike(site.id, 'site')
+    }
+  }
+
   return (
     <Link
       href={site.url}
@@ -107,7 +137,29 @@ export function SiteCard({ site }: SiteCardProps) {
       <Card className="h-full transition-colors hover:bg-muted">
         <CardHeader>
           <CardAction>
-            <ExternalLink className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="flex items-center gap-1">
+              {favMounted && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={handleFavorite}
+                >
+                  <Heart className={`h-4 w-4 ${isFavorite(site.id) ? 'fill-red-500 text-red-500' : ''}`} />
+                </Button>
+              )}
+              {likeMounted && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={handleLike}
+                >
+                  <ThumbsUp className={`h-4 w-4 ${isLiked(site.id, 'site') ? 'fill-blue-500 text-blue-500' : ''}`} />
+                </Button>
+              )}
+              <ExternalLink className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+            </div>
           </CardAction>
           <div className="flex items-center space-x-3">
             {iconSrc && imageLoaded ? (

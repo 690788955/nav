@@ -51,6 +51,16 @@ const navItems = [
     icon: FolderKanban,
   },
   {
+    title: "反馈管理",
+    href: "/admin/feedback",
+    icon: Users,
+  },
+  {
+    title: "标签管理",
+    href: "/admin/tags",
+    icon: Database,
+  },
+  {
     title: "数据管理",
     href: "/admin/data",
     icon: Database,
