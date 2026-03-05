@@ -18,6 +18,8 @@ import {
   FolderKanban,
   Users,
   Database,
+  MessageSquare,
+  Tag,
 } from "lucide-react"
 
 // 系统设置缓存类型
@@ -49,6 +51,16 @@ const navItems = [
     title: "分类管理",
     href: "/admin/categories",
     icon: FolderKanban,
+  },
+  {
+    title: "反馈管理",
+    href: "/admin/feedback",
+    icon: MessageSquare,
+  },
+  {
+    title: "标签管理",
+    href: "/admin/tags",
+    icon: Tag,
   },
   {
     title: "数据管理",

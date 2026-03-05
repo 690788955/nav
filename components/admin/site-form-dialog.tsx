@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Badge } from "@/components/ui/badge"
 import {
   Select,
   SelectContent,
@@ -23,6 +24,7 @@ import {
 } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { createSite, updateSite, getAllCategories } from "@/lib/actions"
+import { getTags } from "@/lib/actions/tags"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2 } from "lucide-react"
 
@@ -34,12 +36,23 @@ interface Site {
   iconUrl: string | null
   categoryId: string
   isPublished: boolean
+  tags?: string | string[] | null
+  platforms?: string | string[] | null
+  screenshots?: string | string[] | null
+  useCases?: string | null
 }
 
 interface Category {
   id: string
   name: string
 }
+
+interface Tag {
+  id: string
+  name: string
+}
+
+const PLATFORMS = ["Web", "Desktop", "Mobile", "API"]
 
 interface SiteFormDialogProps {
   open: boolean
@@ -54,6 +67,7 @@ export function SiteFormDialog({ open, onOpenChange, site, mode, onSuccess }: Si
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
+  const [tags, setTags] = useState<Tag[]>([])
   const [formData, setFormData] = useState({
     name: "",
     url: "",
@@ -61,7 +75,28 @@ export function SiteFormDialog({ open, onOpenChange, site, mode, onSuccess }: Si
     iconUrl: "",
     categoryId: "",
     isPublished: false,
+    tags: [] as string[],
+    platforms: [] as string[],
+    screenshots: [] as string[],
+    useCases: "",
   })
+
+  const parseJsonArray = (value?: string | string[] | null) => {
+    if (!value) {
+      return []
+    }
+
+    if (Array.isArray(value)) {
+      return value
+    }
+
+    try {
+      const parsed = JSON.parse(value || "[]")
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  }
 
   // 加载分类列表
   useEffect(() => {
@@ -69,12 +104,23 @@ export function SiteFormDialog({ open, onOpenChange, site, mode, onSuccess }: Si
       const result = await getAllCategories()
       if (result.success && result.data) {
         setCategories(result.data)
-        if (result.data.length > 0 && !formData.categoryId) {
-          setFormData(prev => ({ ...prev, categoryId: result.data[0].id }))
+        if (result.data.length > 0) {
+          setFormData(prev => (prev.categoryId ? prev : { ...prev, categoryId: result.data[0].id }))
         }
       }
     }
     loadCategories()
+  }, [])
+
+  useEffect(() => {
+    async function loadTags() {
+      const result = await getTags({ isApproved: true })
+      if (result.success && result.data) {
+        setTags(result.data)
+      }
+    }
+
+    loadTags()
   }, [])
 
   // 编辑模式：填充表单数据
@@ -87,6 +133,10 @@ export function SiteFormDialog({ open, onOpenChange, site, mode, onSuccess }: Si
         iconUrl: site.iconUrl || "",
         categoryId: site.categoryId,
         isPublished: site.isPublished,
+        tags: parseJsonArray(site.tags),
+        platforms: parseJsonArray(site.platforms),
+        screenshots: parseJsonArray(site.screenshots),
+        useCases: site.useCases || "",
       })
     } else if (mode === "create") {
       setFormData({
@@ -96,6 +146,10 @@ export function SiteFormDialog({ open, onOpenChange, site, mode, onSuccess }: Si
         iconUrl: "",
         categoryId: "",
         isPublished: false,
+        tags: [],
+        platforms: [],
+        screenshots: [],
+        useCases: "",
       })
     }
   }, [site, mode, open])
@@ -105,9 +159,18 @@ export function SiteFormDialog({ open, onOpenChange, site, mode, onSuccess }: Si
     setLoading(true)
 
     try {
+      const submitData = {
+        ...formData,
+        tags: JSON.stringify(formData.tags),
+        platforms: JSON.stringify(formData.platforms),
+        screenshots: JSON.stringify(formData.screenshots),
+      }
+
+      const actionPayload = submitData as unknown as Parameters<typeof createSite>[0]
+
       const result = mode === "create"
-        ? await createSite(formData)
-        : await updateSite(site!.id, formData)
+        ? await createSite(actionPayload)
+        : await updateSite(site!.id, actionPayload)
 
       if (result.success) {
         toast({
@@ -198,6 +261,146 @@ export function SiteFormDialog({ open, onOpenChange, site, mode, onSuccess }: Si
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 placeholder="简短描述这个网站..."
                 required
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label>标签</Label>
+              <Select
+                value=""
+                onValueChange={(value) => {
+                  if (!formData.tags.includes(value)) {
+                    setFormData({ ...formData, tags: [...formData.tags, value] })
+                  }
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="选择标签" />
+                </SelectTrigger>
+                <SelectContent>
+                  {tags.map((tag) => (
+                    <SelectItem key={tag.id} value={tag.name}>
+                      {tag.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {formData.tags.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {formData.tags.map((tag, index) => (
+                    <Badge key={`${tag}-${index}`} variant="secondary" className="gap-1">
+                      {tag}
+                      <button
+                        type="button"
+                        className="text-xs"
+                        onClick={() => {
+                          setFormData({
+                            ...formData,
+                            tags: formData.tags.filter((_, i) => i !== index),
+                          })
+                        }}
+                      >
+                        ×
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="grid gap-2">
+              <Label>平台</Label>
+              <Select
+                value=""
+                onValueChange={(value) => {
+                  if (!formData.platforms.includes(value)) {
+                    setFormData({ ...formData, platforms: [...formData.platforms, value] })
+                  }
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="选择平台" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PLATFORMS.map((platform) => (
+                    <SelectItem key={platform} value={platform}>
+                      {platform}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {formData.platforms.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {formData.platforms.map((platform, index) => (
+                    <Badge key={`${platform}-${index}`} variant="secondary" className="gap-1">
+                      {platform}
+                      <button
+                        type="button"
+                        className="text-xs"
+                        onClick={() => {
+                          setFormData({
+                            ...formData,
+                            platforms: formData.platforms.filter((_, i) => i !== index),
+                          })
+                        }}
+                      >
+                        ×
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="grid gap-2">
+              <Label>截图 URL</Label>
+              {formData.screenshots.map((url, index) => (
+                <div key={index} className="flex gap-2">
+                  <Input
+                    type="url"
+                    value={url}
+                    onChange={(e) => {
+                      const updatedScreenshots = [...formData.screenshots]
+                      updatedScreenshots[index] = e.target.value
+                      setFormData({ ...formData, screenshots: updatedScreenshots })
+                    }}
+                    placeholder="https://example.com/screenshot.png"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      setFormData({
+                        ...formData,
+                        screenshots: formData.screenshots.filter((_, i) => i !== index),
+                      })
+                    }}
+                  >
+                    ×
+                  </Button>
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-fit"
+                onClick={() => {
+                  setFormData({ ...formData, screenshots: [...formData.screenshots, ""] })
+                }}
+              >
+                + 添加截图
+              </Button>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="useCases">使用场景</Label>
+              <Textarea
+                id="useCases"
+                value={formData.useCases}
+                onChange={(e) => setFormData({ ...formData, useCases: e.target.value })}
+                placeholder="描述这个网站适用于哪些场景..."
               />
             </div>
 

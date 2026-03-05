@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { deleteFeedback } from "@/lib/actions/feedback"
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = params
+    const { id } = await params
 
     if (!id) {
       return NextResponse.json({ success: false, error: "Feedback ID is required" }, { status: 400 })

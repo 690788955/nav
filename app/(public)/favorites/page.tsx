@@ -1,86 +1,126 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
+import { Heart } from "lucide-react"
+import { Header } from "@/components/layout/header"
+import { Footer } from "@/components/layout/footer"
 import { SiteCard } from "@/components/layout/site-card"
 import { Button } from "@/components/ui/button"
-import { Heart } from "lucide-react"
 import useFavorites from "@/hooks/use-favorites"
 import { getSites } from "@/lib/actions"
 
+interface FavoriteSite {
+  id: string
+  name: string
+  url: string
+  description: string
+  iconUrl: string | null
+  likesCount?: number
+  isPublished: boolean
+  category?: {
+    name: string
+  }
+}
+
 export default function FavoritesPage() {
   const { favorites, mounted } = useFavorites()
-  const [sites, setSites] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const [favoriteSites, setFavoriteSites] = useState<FavoriteSite[]>([])
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (!mounted) return
+    let cancelled = false
 
-    async function fetchFavorites() {
+    async function loadFavoriteSites() {
+      if (!mounted) {
+        return
+      }
+
       if (favorites.length === 0) {
+        setFavoriteSites([])
         setLoading(false)
         return
       }
 
+      setLoading(true)
+
       try {
-        const { data } = await getSites()
-        if (data) {
-          const favoriteSites = data.filter(site => favorites.includes(site.id))
-          setSites(favoriteSites)
+        const result = await getSites()
+        if (!result.success || !result.data || cancelled) {
+          if (!cancelled) {
+            setFavoriteSites([])
+          }
+          return
         }
-      } catch (error) {
-        console.error("Failed to fetch favorites:", error)
+
+        const favoriteSet = new Set(favorites)
+        const matchedSites = result.data.filter(
+          (site) => site.isPublished && favoriteSet.has(site.id)
+        )
+
+        if (!cancelled) {
+          setFavoriteSites(matchedSites)
+        }
+      } catch {
+        if (!cancelled) {
+          setFavoriteSites([])
+        }
       } finally {
-        setLoading(false)
+        if (!cancelled) {
+          setLoading(false)
+        }
       }
     }
 
-    fetchFavorites()
+    loadFavoriteSites()
+
+    return () => {
+      cancelled = true
+    }
   }, [favorites, mounted])
 
-  if (!mounted || loading) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-8">我的收藏</h1>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <p className="text-muted-foreground">加载中...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (favorites.length === 0 || sites.length === 0) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-8">我的收藏</h1>
-        <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
-          <Heart className="h-16 w-16 text-muted-foreground" />
-          <h2 className="text-xl font-semibold">还没有收藏任何工具</h2>
-          <p className="text-muted-foreground text-center max-w-md">
-            浏览首页并点击心形按钮来收藏喜欢的工具
-          </p>
-          <Button asChild className="mt-4">
-            <Link href="/">去首页逛逛</Link>
-          </Button>
-        </div>
-      </div>
-    )
-  }
+  const showEmptyState = useMemo(() => {
+    if (!mounted || loading) return false
+    return favorites.length === 0 || favoriteSites.length === 0
+  }, [favorites.length, favoriteSites.length, loading, mounted])
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">我的收藏</h1>
-        <p className="text-muted-foreground mt-2">
-          共收藏 {sites.length} 个工具
-        </p>
-      </div>
+    <div className="min-h-screen flex flex-col">
+      <Header categories={[]} />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {sites.map((site) => (
-          <SiteCard key={site.id} site={site} />
-        ))}
-      </div>
+      <main className="flex-1 px-4 sm:px-6 lg:px-8 py-8 page-enter">
+        <div className="mx-auto max-w-[1600px] w-full">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold tracking-tight">我的收藏</h1>
+            <p className="text-muted-foreground mt-2">这里展示你收藏的所有工具</p>
+          </div>
+
+          {!mounted || loading ? (
+            <div className="flex min-h-[300px] flex-col items-center justify-center rounded-lg border border-dashed">
+              <p className="text-sm text-muted-foreground">正在加载收藏内容...</p>
+            </div>
+          ) : showEmptyState ? (
+            <div className="flex min-h-[360px] flex-col items-center justify-center rounded-lg border border-dashed px-6 text-center">
+              <Heart className="h-10 w-10 text-muted-foreground" aria-hidden="true" />
+              <p className="mt-4 text-lg text-muted-foreground">还没有收藏任何工具</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                浏览首页并点击心形按钮来收藏喜欢的工具
+              </p>
+              <Button asChild className="mt-6">
+                <Link href="/">去首页逛逛</Link>
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {favoriteSites.map((site) => (
+                <SiteCard key={site.id} site={site} />
+              ))}
+            </div>
+          )}
+        </div>
+      </main>
+
+      <Footer />
     </div>
   )
 }

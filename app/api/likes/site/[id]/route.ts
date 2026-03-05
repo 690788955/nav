@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { likeSite, unlikeSite } from "@/lib/actions/likes"
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = params
+    const { id } = await params
 
     if (!id) {
       return NextResponse.json({ success: false, error: "Site ID is required" }, { status: 400 })
@@ -22,9 +22,9 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = params
+    const { id } = await params
 
     if (!id) {
       return NextResponse.json({ success: false, error: "Site ID is required" }, { status: 400 })
