@@ -8,87 +8,66 @@ export function useLikes() {
   const [likedFeedbacks, setLikedFeedbacks] = useState<Set<string>>(new Set())
   const [mounted, setMounted] = useState(false)
 
-  // Initialize from localStorage on mount
+  // Initialize from localStorage
   useEffect(() => {
     try {
       const savedSites = localStorage.getItem(LIKED_SITES_KEY)
       const savedFeedbacks = localStorage.getItem(LIKED_FEEDBACKS_KEY)
 
-      if (savedSites) {
-        try {
-          const parsed = JSON.parse(savedSites)
-          setLikedSites(new Set(Array.isArray(parsed) ? parsed : []))
-        } catch {
-          setLikedSites(new Set())
-        }
-      }
-
-      if (savedFeedbacks) {
-        try {
-          const parsed = JSON.parse(savedFeedbacks)
-          setLikedFeedbacks(new Set(Array.isArray(parsed) ? parsed : []))
-        } catch {
-          setLikedFeedbacks(new Set())
-        }
-      }
+      setLikedSites(
+        savedSites ? new Set(JSON.parse(savedSites)) : new Set()
+      )
+      setLikedFeedbacks(
+        savedFeedbacks ? new Set(JSON.parse(savedFeedbacks)) : new Set()
+      )
     } catch {
-      // localStorage unavailable, fallback to memory state
+      // JSON parse failed or localStorage unavailable - use empty sets
       setLikedSites(new Set())
       setLikedFeedbacks(new Set())
     }
-
     setMounted(true)
   }, [])
 
-  // Toggle like for site or feedback
-  const toggleLike = (type: "site" | "feedback", id: string) => {
+  const toggleLike = (id: string, type: "site" | "feedback") => {
     try {
+      const targetSet = type === "site" ? likedSites : likedFeedbacks
+      const newSet = new Set(targetSet)
+
+      if (newSet.has(id)) {
+        newSet.delete(id)
+      } else {
+        newSet.add(id)
+      }
+
+      const key = type === "site" ? LIKED_SITES_KEY : LIKED_FEEDBACKS_KEY
+      localStorage.setItem(key, JSON.stringify(Array.from(newSet)))
+
       if (type === "site") {
-        setLikedSites((prev) => {
-          const updated = new Set(prev)
-          if (updated.has(id)) {
-            updated.delete(id)
-          } else {
-            updated.add(id)
-          }
-          // Persist to localStorage
-          try {
-            localStorage.setItem(LIKED_SITES_KEY, JSON.stringify(Array.from(updated)))
-          } catch {
-            // localStorage quota exceeded or unavailable, keep in memory
-          }
-          return updated
-        })
-      } else if (type === "feedback") {
-        setLikedFeedbacks((prev) => {
-          const updated = new Set(prev)
-          if (updated.has(id)) {
-            updated.delete(id)
-          } else {
-            updated.add(id)
-          }
-          // Persist to localStorage
-          try {
-            localStorage.setItem(LIKED_FEEDBACKS_KEY, JSON.stringify(Array.from(updated)))
-          } catch {
-            // localStorage quota exceeded or unavailable, keep in memory
-          }
-          return updated
-        })
+        setLikedSites(newSet)
+      } else {
+        setLikedFeedbacks(newSet)
       }
     } catch {
-      // Silently fail, state remains in memory
+      // localStorage unavailable - update state only (in-memory fallback)
+      const newSet = new Set(
+        type === "site" ? likedSites : likedFeedbacks
+      )
+      if (newSet.has(id)) {
+        newSet.delete(id)
+      } else {
+        newSet.add(id)
+      }
+
+      if (type === "site") {
+        setLikedSites(newSet)
+      } else {
+        setLikedFeedbacks(newSet)
+      }
     }
   }
 
-  // Check if item is liked
-  const isLiked = (type: "site" | "feedback", id: string): boolean => {
-    if (type === "site") {
-      return likedSites.has(id)
-    } else if (type === "feedback") {
-      return likedFeedbacks.has(id)
-    }
-    return false
+  const isLiked = (id: string, type: "site" | "feedback"): boolean => {
+    return type === "site" ? likedSites.has(id) : likedFeedbacks.has(id)
   }
 
   return {

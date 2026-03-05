@@ -1,52 +1,42 @@
-"use client"
-
 import { useState, useEffect } from "react"
 
 const FAVORITES_KEY = "favorites"
 
-export default function useFavorites() {
+export function useFavorites() {
   const [favorites, setFavorites] = useState<string[]>([])
   const [mounted, setMounted] = useState(false)
 
-  // Initialize from localStorage on mount
+  // Initialize from localStorage
   useEffect(() => {
     try {
       const saved = localStorage.getItem(FAVORITES_KEY)
-      if (saved) {
-        try {
-          setFavorites(JSON.parse(saved))
-        } catch {
-          // JSON parse error - reset to empty array
-          setFavorites([])
-          localStorage.setItem(FAVORITES_KEY, JSON.stringify([]))
-        }
-      } else {
-        setFavorites([])
-      }
+      setFavorites(saved ? JSON.parse(saved) : [])
     } catch {
-      // localStorage unavailable - fallback to memory state
+      // JSON parse failed or localStorage unavailable
       setFavorites([])
     }
     setMounted(true)
   }, [])
 
   const toggleFavorite = (id: string) => {
-    setFavorites((prev) => {
-      const updated = prev.includes(id)
-        ? prev.filter((fav) => fav !== id)
-        : [...prev, id]
-
-      try {
-        localStorage.setItem(FAVORITES_KEY, JSON.stringify(updated))
-      } catch {
-        // localStorage unavailable - continue with memory state
-      }
-
-      return updated
-    })
+    try {
+      const updated = favorites.includes(id)
+        ? favorites.filter(fav => fav !== id)
+        : [...favorites, id]
+      localStorage.setItem(FAVORITES_KEY, JSON.stringify(updated))
+      setFavorites(updated)
+    } catch {
+      // localStorage unavailable - update state only (in-memory fallback)
+      const updated = favorites.includes(id)
+        ? favorites.filter(fav => fav !== id)
+        : [...favorites, id]
+      setFavorites(updated)
+    }
   }
 
-  const isFavorite = (id: string) => favorites.includes(id)
+  const isFavorite = (id: string): boolean => {
+    return favorites.includes(id)
+  }
 
   return { favorites, toggleFavorite, isFavorite, mounted }
 }

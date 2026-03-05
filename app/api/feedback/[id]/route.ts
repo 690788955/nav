@@ -1,23 +1,16 @@
 import { NextRequest, NextResponse } from "next/server"
 import { deleteFeedback } from "@/lib/actions/feedback"
 
-export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const { id } = await params
-
-    if (!id) {
-      return NextResponse.json({ success: false, error: "Feedback ID is required" }, { status: 400 })
-    }
-
-    const result = await deleteFeedback(id)
-
-    if (!result.success) {
-      return NextResponse.json({ success: false, error: result.error }, { status: 400 })
-    }
-
-    return NextResponse.json({ success: true, data: result.data })
-  } catch (error) {
-    console.error("Error deleting feedback:", error)
-    return NextResponse.json({ success: false, error: "Failed to delete feedback" }, { status: 500 })
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params
+  const result = await deleteFeedback(id)
+  
+  if (!result.success) {
+    return NextResponse.json({ error: result.error }, { status: result.error === 'Unauthorized' ? 403 : 500 })
   }
+  
+  return NextResponse.json(result)
 }

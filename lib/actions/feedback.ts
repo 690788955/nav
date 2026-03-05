@@ -1,96 +1,58 @@
 "use server"
 
-import { Prisma } from "@prisma/client"
-import { cookies, headers } from "next/headers"
 import { prisma } from "@/lib/prisma"
+import { revalidatePath } from "next/cache"
+import { headers, cookies } from "next/headers"
 import { getClientIp } from "@/lib/utils/ip"
 import { checkRateLimit } from "@/lib/utils/rate-limit"
 
-type FeedbackType = "feature_request" | "bug_report" | "improvement"
-
-interface ActionResult<T = unknown> {
-  success: boolean
-  data?: T
-  error?: string
-}
-
-const VALID_FEEDBACK_TYPES: FeedbackType[] = [
-  "feature_request",
-  "bug_report",
-  "improvement",
-]
-
-async function ensureAdmin(): Promise<ActionResult> {
-  const cookieStore = await cookies()
-  const userId = cookieStore.get("user_id")?.value
-  const userRole = cookieStore.get("user_role")?.value
-
-  if (!userId || userRole !== "ADMIN") {
-    return { success: false, error: "Unauthorized" }
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { role: true },
-  })
-
-  if (!user || user.role !== "ADMIN") {
-    return { success: false, error: "Unauthorized" }
-  }
-
-  return { success: true }
-}
+const FEEDBACK_TYPES = ['feature_request', 'bug_report', 'improvement'] as const
 
 export async function submitFeedback(data: {
   toolId: string
   type: string
   content: string
   contact?: string
-}): Promise<ActionResult> {
+}) {
   try {
-    if (!data.toolId) {
-      return { success: false, error: "Tool ID is required" }
+    // Validate type
+    if (!FEEDBACK_TYPES.includes(data.type as any)) {
+      return { success: false, error: "Invalid feedback type" }
     }
 
-    if (!data.content?.trim()) {
-      return { success: false, error: "Feedback content is required" }
+    // Validate content
+    if (!data.content || data.content.trim().length === 0) {
+      return { success: false, error: "Content is required" }
     }
 
-    if (!VALID_FEEDBACK_TYPES.includes(data.type as FeedbackType)) {
-      return {
-        success: false,
-        error: "Invalid feedback type. Must be feature_request, bug_report, or improvement",
-      }
-    }
+    // Get client IP
+    const headersList = await headers()
+    const ip = getClientIp(headersList) || 'unknown'
 
-    const requestHeaders = await headers()
-    const clientIp = getClientIp(requestHeaders) ?? "unknown"
-
-    const allowed = checkRateLimit(clientIp, "feedback", 5, 86400000)
+    // Rate limit check: 5 feedback per IP per day
+    const allowed = checkRateLimit(ip, 'feedback', 5, 24 * 60 * 60 * 1000)
     if (!allowed) {
-      return {
-        success: false,
-        error: "Too many feedback submissions. Please try again tomorrow.",
-      }
+      return { success: false, error: "提交太频繁，每天最多5条反馈" }
     }
 
+    // Create feedback
     const feedback = await prisma.feedback.create({
       data: {
         toolId: data.toolId,
         type: data.type,
         content: data.content.trim(),
         contact: data.contact?.trim() || null,
-        ipAddress: clientIp,
+        ipAddress: ip,
       },
       include: {
         tool: {
-          select: {
-            id: true,
-            name: true,
-          },
+          select: { id: true, name: true, url: true },
         },
       },
     })
+
+    revalidatePath("/feedback")
+    revalidatePath("/admin/feedback")
 
     return { success: true, data: feedback }
   } catch (error) {
@@ -99,40 +61,33 @@ export async function submitFeedback(data: {
   }
 }
 
-export async function getFeedbacks(params: {
+export async function getFeedbacks(params?: {
   toolId?: string
-  type?: FeedbackType
+  type?: string
   page?: number
   pageSize?: number
-  sortBy?: "likes" | "time"
-}): Promise<ActionResult> {
+  sortBy?: 'likes' | 'time'
+}) {
   try {
-    const page = Math.max(1, params.page || 1)
-    const pageSize = Math.max(1, params.pageSize || 10)
+    const page = params?.page || 1
+    const pageSize = params?.pageSize || 20
     const skip = (page - 1) * pageSize
 
-    const where: Prisma.FeedbackWhereInput = {
+    const where: any = {
       isDeleted: false,
     }
 
-    if (params.toolId) {
+    if (params?.toolId) {
       where.toolId = params.toolId
     }
 
-    if (params.type) {
-      if (!VALID_FEEDBACK_TYPES.includes(params.type)) {
-        return {
-          success: false,
-          error: "Invalid feedback type filter",
-        }
-      }
+    if (params?.type) {
       where.type = params.type
     }
 
-    const orderBy: Prisma.FeedbackOrderByWithRelationInput =
-      params.sortBy === "likes"
-        ? { likesCount: "desc" }
-        : { createdAt: "desc" }
+    const orderBy = params?.sortBy === 'likes'
+      ? { likesCount: 'desc' as const }
+      : { createdAt: 'desc' as const }
 
     const [feedbacks, total] = await Promise.all([
       prisma.feedback.findMany({
@@ -142,10 +97,7 @@ export async function getFeedbacks(params: {
         orderBy,
         include: {
           tool: {
-            select: {
-              id: true,
-              name: true,
-            },
+            select: { id: true, name: true, url: true },
           },
         },
       }),
@@ -154,11 +106,11 @@ export async function getFeedbacks(params: {
 
     return {
       success: true,
-      data: {
-        items: feedbacks,
-        total,
+      data: feedbacks,
+      pagination: {
         page,
         pageSize,
+        total,
         totalPages: Math.ceil(total / pageSize),
       },
     }
@@ -168,43 +120,28 @@ export async function getFeedbacks(params: {
   }
 }
 
-export async function deleteFeedback(id: string): Promise<ActionResult> {
+export async function deleteFeedback(id: string) {
   try {
-    if (!id) {
-      return { success: false, error: "Feedback ID is required" }
+    // Check admin auth
+    const cookieStore = await cookies()
+    const userRole = cookieStore.get('user_role')?.value
+
+    if (userRole !== 'ADMIN') {
+      return { success: false, error: "Unauthorized" }
     }
 
-    const adminCheck = await ensureAdmin()
-    if (!adminCheck.success) {
-      return adminCheck
-    }
-
-    const feedback = await prisma.feedback.update({
+    // Soft delete
+    await prisma.feedback.update({
       where: { id },
       data: { isDeleted: true },
     })
 
-    return { success: true, data: feedback }
+    revalidatePath("/feedback")
+    revalidatePath("/admin/feedback")
+
+    return { success: true }
   } catch (error) {
     console.error("Error deleting feedback:", error)
     return { success: false, error: "Failed to delete feedback" }
-  }
-}
-
-export async function likeFeedback(id: string): Promise<ActionResult> {
-  try {
-    if (!id) {
-      return { success: false, error: "Feedback ID is required" }
-    }
-
-    const feedback = await prisma.feedback.update({
-      where: { id },
-      data: { likesCount: { increment: 1 } },
-    })
-
-    return { success: true, data: feedback }
-  } catch (error) {
-    console.error("Error liking feedback:", error)
-    return { success: false, error: "Failed to like feedback" }
   }
 }

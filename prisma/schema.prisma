@@ -31,13 +31,13 @@ model Site {
   categoryId       String
   category         Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   isPublished      Boolean   @default(false)
-   order            Int       @default(0)
-   tags             String    @default("[]")
-   platforms        String    @default("[]")
-   screenshots      String    @default("[]")
-   useCases         String?
-   likesCount       Int       @default(0)
-   createdAt        DateTime  @default(now())
+  order            Int       @default(0)
+  tags             String    @default("[]")
+  platforms        String    @default("[]")
+  screenshots      String    @default("[]")
+  useCases         String?
+  likesCount       Int       @default(0)
+  createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
   visits           Visit[]
   feedbacks        Feedback[]
@@ -59,6 +59,7 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
 
 model SystemSettings {
   id               String   @id @default("default") @map("id")
@@ -117,8 +118,8 @@ model Feedback {
   updatedAt DateTime @updatedAt
 
   @@index([toolId])
-  @@index([likesCount])
-  @@index([createdAt])
+  @@index([isDeleted])
+  @@index([toolId, isDeleted])
 }
 
 model Tag {
@@ -129,4 +130,7 @@ model Tag {
   isApproved Boolean  @default(false)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+
+  @@index([isOfficial])
+  @@index([isApproved])
 }

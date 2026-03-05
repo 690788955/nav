@@ -347,9 +347,9 @@ export async function createSite(data: {
         categoryId: data.categoryId,
         isPublished: data.isPublished ?? false,
         order: data.order ?? 0,
-        tags: JSON.stringify(data.tags || []),
-        platforms: JSON.stringify(data.platforms || []),
-        screenshots: JSON.stringify(data.screenshots || []),
+        tags: data.tags ? JSON.stringify(data.tags) : '[]',
+        platforms: data.platforms ? JSON.stringify(data.platforms) : '[]',
+        screenshots: data.screenshots ? JSON.stringify(data.screenshots) : '[]',
         useCases: data.useCases || null,
       },
       include: {
@@ -390,18 +390,13 @@ export async function updateSite(id: string, data: {
   useCases?: string
 }) {
   try {
-    const updateData: any = { ...data }
-    
-    if (data.tags !== undefined) {
-      updateData.tags = JSON.stringify(data.tags)
+    const { tags, platforms, screenshots, ...restData } = data
+    const updateData: any = {
+      ...restData,
+      ...(tags !== undefined && { tags: JSON.stringify(tags) }),
+      ...(platforms !== undefined && { platforms: JSON.stringify(platforms) }),
+      ...(screenshots !== undefined && { screenshots: JSON.stringify(screenshots) }),
     }
-    if (data.platforms !== undefined) {
-      updateData.platforms = JSON.stringify(data.platforms)
-    }
-    if (data.screenshots !== undefined) {
-      updateData.screenshots = JSON.stringify(data.screenshots)
-    }
-    
     const site = await prisma.site.update({
       where: { id },
       data: updateData,
@@ -651,25 +646,25 @@ export async function updateSystemSettings(data: {
     // 获取第一条设置记录
     let settings = await prisma.systemSettings.findFirst()
 
-    // footerLinks 需要序列化为 JSON 字符串（SQLite 不支持 Json 类型）
-    const dbData = {
+    // Serialize footerLinks if provided
+    const processedData: any = {
       ...data,
-      footerLinks: data.footerLinks ? JSON.stringify(data.footerLinks) : undefined,
+      ...(data.footerLinks !== undefined && { footerLinks: JSON.stringify(data.footerLinks) }),
     }
 
     if (!settings) {
       // 如果不存在，创建新的
       settings = await prisma.systemSettings.create({
         data: {
-          ...dbData,
-          footerCopyright: dbData.footerCopyright || `© ${new Date().getFullYear()} Conan Nav. All rights reserved.`,
+          ...processedData,
+          footerCopyright: data.footerCopyright || `© ${new Date().getFullYear()} Conan Nav. All rights reserved.`,
         },
       })
     } else {
       // 更新现有记录
       settings = await prisma.systemSettings.update({
         where: { id: settings.id },
-        data: dbData,
+        data: processedData,
       })
     }
 

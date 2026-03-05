@@ -1,151 +1,64 @@
-TASK 1: New Models Detailed Specification
-===========================================
+TASK 1: New Models Evidence
+============================
 
-FEEDBACK MODEL
-==============
+SCENARIO 2: Feedback and Tag Models Creation
+=============================================
 
-Schema Definition:
-```prisma
-model Feedback {
-  id          String   @id @default(cuid())
-  siteId      String
-  site        Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
-  rating      Int
-  comment     String?
-  email       String?
-  likesCount  Int      @default(0)
-  isPublished Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+Feedback Model Structure:
+- Table Name: Feedback
+- Primary Key: id (TEXT, CUID)
+- Fields:
+  * id: TEXT NOT NULL (Primary Key)
+  * toolId: TEXT NOT NULL (Foreign Key to Site)
+  * type: TEXT NOT NULL
+  * content: TEXT NOT NULL
+  * contact: TEXT (nullable)
+  * likesCount: INTEGER NOT NULL DEFAULT 0
+  * ipAddress: TEXT (nullable)
+  * isDeleted: BOOLEAN NOT NULL DEFAULT false
+  * createdAt: TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+  * updatedAt: TIMESTAMP(3) NOT NULL (auto-updated by Prisma)
 
-  @@index([siteId])
-  @@index([likesCount])
-  @@index([createdAt])
-}
-```
+Feedback Indexes:
+- Feedback_toolId_idx: ON "Feedback"("toolId")
+- Feedback_isDeleted_idx: ON "Feedback"("isDeleted")
+- Feedback_toolId_isDeleted_idx: ON "Feedback"("toolId", "isDeleted")
+- Total: 3 indexes
 
-Database Table Structure:
-- id: TEXT PRIMARY KEY (CUID)
-- siteId: TEXT NOT NULL (Foreign Key → Site.id, CASCADE)
-- rating: INTEGER NOT NULL
-- comment: TEXT (nullable)
-- email: TEXT (nullable)
-- likesCount: INTEGER DEFAULT 0
-- isPublished: BOOLEAN DEFAULT false
-- createdAt: DATETIME DEFAULT CURRENT_TIMESTAMP
-- updatedAt: DATETIME (auto-updated)
+Feedback Foreign Keys:
+- Feedback_toolId_fkey: REFERENCES "Site"("id") ON DELETE CASCADE ON UPDATE CASCADE
 
-Indexes (3 total):
-1. Feedback_siteId_idx - For filtering by site
-2. Feedback_likesCount_idx - For sorting by popularity
-3. Feedback_createdAt_idx - For chronological queries
+Tag Model Structure:
+- Table Name: Tag
+- Primary Key: id (TEXT, CUID)
+- Fields:
+  * id: TEXT NOT NULL (Primary Key)
+  * name: TEXT NOT NULL UNIQUE
+  * slug: TEXT NOT NULL UNIQUE
+  * isOfficial: BOOLEAN NOT NULL DEFAULT false
+  * isApproved: BOOLEAN NOT NULL DEFAULT false
+  * createdAt: TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+  * updatedAt: TIMESTAMP(3) NOT NULL (auto-updated by Prisma)
 
-Relationships:
-- Many-to-One: Feedback → Site (onDelete: Cascade)
-- When a Site is deleted, all its Feedback records are deleted
+Tag Indexes:
+- Tag_name_key: UNIQUE ON "Tag"("name")
+- Tag_slug_key: UNIQUE ON "Tag"("slug")
+- Tag_isOfficial_idx: ON "Tag"("isOfficial")
+- Tag_isApproved_idx: ON "Tag"("isApproved")
+- Total: 4 indexes
 
-TAG MODEL
-=========
+Expected Outcomes Met:
+✓ Feedback table created with all required fields
+✓ Feedback has 3 indexes (toolId, isDeleted, toolId+isDeleted)
+✓ Feedback has CASCADE delete relationship to Site
+✓ Tag table created with all required fields
+✓ Tag has unique constraints on name and slug
+✓ Tag has indexes for isOfficial and isApproved
+✓ All fields have appropriate default values
+✓ All timestamps use Prisma's @updatedAt pattern
 
-Schema Definition:
-```prisma
-model Tag {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  slug      String   @unique
-  color     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-```
-
-Database Table Structure:
-- id: TEXT PRIMARY KEY (CUID)
-- name: TEXT NOT NULL UNIQUE
-- slug: TEXT NOT NULL UNIQUE
-- color: TEXT (nullable, for UI display)
-- createdAt: DATETIME DEFAULT CURRENT_TIMESTAMP
-- updatedAt: DATETIME (auto-updated)
-
-Unique Constraints (2 total):
-1. Tag_name_key - Prevents duplicate tag names
-2. Tag_slug_key - Prevents duplicate slugs (URL-friendly identifiers)
-
-SITE MODEL EXTENSIONS
-=====================
-
-New Fields Added:
-1. tags: String @default("[]")
-   - Stores JSON array as string
-   - Default: empty array
-   - Use case: Multiple tags per site
-
-2. platforms: String @default("[]")
-   - Stores JSON array as string
-   - Default: empty array
-   - Use case: Supported platforms (web, mobile, desktop, etc.)
-
-3. screenshots: String @default("[]")
-   - Stores JSON array as string
-   - Default: empty array
-   - Use case: URLs to site screenshots
-
-4. useCases: String @default("[]")
-   - Stores JSON array as string
-   - Default: empty array
-   - Use case: Common use cases for the tool
-
-5. likesCount: Int @default(0)
-   - Integer counter
-   - Default: 0
-   - Use case: Track site popularity
-
-New Relationship:
-- feedbacks: Feedback[]
-  - One-to-many relationship
-  - A Site can have multiple Feedback records
-  - Enables feedback management per site
-
-Updated Field:
-- updatedAt: DateTime @updatedAt
-  - Changed from: @default(now())
-  - Now automatically updates on every record modification
-  - Ensures accurate "last modified" timestamps
-
-MIGRATION SQL VERIFICATION
-===========================
-
-Feedback Table Creation:
-✅ CREATE TABLE "Feedback" with 9 columns
-✅ Foreign key constraint: Feedback_siteId_fkey (CASCADE)
-✅ 3 indexes created: siteId, likesCount, createdAt
-
-Tag Table Creation:
-✅ CREATE TABLE "Tag" with 6 columns
-✅ 2 unique indexes: name, slug
-
-Site Table Modifications:
-✅ Added 5 new columns: tags, platforms, screenshots, useCases, likesCount
-✅ All new columns have appropriate defaults
-✅ No existing columns modified or removed
-
-COMPATIBILITY NOTES
-===================
-
-SQLite Compatibility:
-✅ All JSON data stored as TEXT (not JSONB)
-✅ No PostgreSQL-specific features used
-✅ Compatible with SQLite 3.x
-
-Type Safety:
-✅ All fields have explicit types
-✅ Nullable fields marked with ?
-✅ Default values specified for all non-nullable fields
-
-Performance:
-✅ Feedback indexes optimize common queries:
-   - Filter by site: siteId index
-   - Sort by popularity: likesCount index
-   - Timeline queries: createdAt index
-✅ Tag unique constraints prevent duplicates
-✅ Cascade delete ensures referential integrity
+Migration SQL Generated:
+- CREATE TABLE "Feedback" with all constraints
+- CREATE TABLE "Tag" with all constraints
+- CREATE INDEX statements for all indexes
+- ALTER TABLE "Feedback" ADD CONSTRAINT for foreign key

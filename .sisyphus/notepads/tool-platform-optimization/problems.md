@@ -1,3 +1,5 @@
-# Unresolved Problems
+# Problems - Tool Platform Optimization
 
-_No blockers identified yet. This file will track issues discovered during implementation._
+## Unresolved Blockers
+
+(Tasks will append blockers here)

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -27,92 +27,86 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Button } from "@/components/ui/button"
+import { Loader2, MessageSquare } from "lucide-react"
 import { toast } from "sonner"
-import { getSites } from "@/lib/actions"
 
-const feedbackSchema = z.object({
-  toolId: z.string().min(1, "请选择工具"),
+const formSchema = z.object({
   type: z.enum(["feature_request", "bug_report", "improvement"], {
     required_error: "请选择反馈类型",
   }),
-  content: z.string().min(1, "请输入反馈内容").max(500, "反馈内容不能超过500字"),
-  contact: z.string().max(100, "联系方式不能超过100字").optional(),
+  content: z.string().min(1, "反馈内容不能为空").max(1000, "反馈内容不能超过1000个字符"),
+  contact: z.string().max(100, "联系方式不能超过100个字符").optional(),
 })
 
-type FeedbackFormData = z.infer<typeof feedbackSchema>
+type FormValues = z.infer<typeof formSchema>
 
 interface FeedbackDialogProps {
-  children: React.ReactNode
-  defaultToolId?: string
+  toolId: string
+  toolName: string
+  children?: React.ReactNode
 }
 
-export function FeedbackDialog({ children, defaultToolId }: FeedbackDialogProps) {
+export function FeedbackDialog({ toolId, toolName, children }: FeedbackDialogProps) {
   const [open, setOpen] = useState(false)
-  const [sites, setSites] = useState<any[]>([])
-  const [submitting, setSubmitting] = useState(false)
+  const [loading, setLoading] = useState(false)
 
-  const form = useForm<FeedbackFormData>({
-    resolver: zodResolver(feedbackSchema),
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
     defaultValues: {
-      toolId: defaultToolId || "",
-      type: "feature_request",
+      type: undefined,
       content: "",
       contact: "",
     },
   })
 
-  useEffect(() => {
-    async function fetchSites() {
-      const { data } = await getSites()
-      if (data) {
-        setSites(data.filter(site => site.isPublished))
-      }
-    }
-    fetchSites()
-  }, [])
-
-  useEffect(() => {
-    if (defaultToolId) {
-      form.setValue("toolId", defaultToolId)
-    }
-  }, [defaultToolId, form])
-
-  const onSubmit = async (data: FeedbackFormData) => {
-    setSubmitting(true)
+  async function onSubmit(values: FormValues) {
+    setLoading(true)
     try {
       const response = await fetch("/api/feedback", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          toolId,
+          type: values.type,
+          content: values.content,
+          contact: values.contact || undefined,
+        }),
       })
 
       const result = await response.json()
 
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || "提交失败")
+      if (result.success) {
+        toast.success("反馈提交成功！感谢您的贡献")
+        form.reset()
+        setOpen(false)
+      } else {
+        toast.error(result.error || "提交失败，请稍后重试")
       }
-
-      toast.success("反馈提交成功！感谢您的反馈")
-      form.reset()
-      setOpen(false)
-    } catch (error: any) {
-      toast.error(error.message || "提交失败，请稍后重试")
+    } catch (error) {
+      toast.error("网络错误，请稍后重试")
     } finally {
-      setSubmitting(false)
+      setLoading(false)
     }
   }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogTrigger asChild>
+        {children || (
+          <Button variant="outline" size="sm">
+            <MessageSquare className="mr-1 h-4 w-4" />
+            提交反馈
+          </Button>
+        )}
+      </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>提交反馈</DialogTitle>
           <DialogDescription>
-            告诉我们您的想法，帮助我们改进工具
+            为 <strong>{toolName}</strong> 提交优化建议或问题反馈
           </DialogDescription>
         </DialogHeader>
 
@@ -120,45 +114,20 @@ export function FeedbackDialog({ children, defaultToolId }: FeedbackDialogProps)
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
-              name="toolId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>选择工具</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="请选择工具" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {sites.map((site) => (
-                        <SelectItem key={site.id} value={site.id}>
-                          {site.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
               name="type"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>反馈类型</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue />
+                        <SelectValue placeholder="请选择反馈类型" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
                       <SelectItem value="feature_request">功能建议</SelectItem>
-                      <SelectItem value="bug_report">Bug反馈</SelectItem>
-                      <SelectItem value="improvement">体验改进</SelectItem>
+                      <SelectItem value="bug_report">问题反馈</SelectItem>
+                      <SelectItem value="improvement">优化建议</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -174,7 +143,7 @@ export function FeedbackDialog({ children, defaultToolId }: FeedbackDialogProps)
                   <FormLabel>反馈内容</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="请详细描述您的反馈..."
+                      placeholder="请详细描述你的建议或遇到的问题..."
                       className="min-h-[120px]"
                       {...field}
                     />
@@ -198,16 +167,10 @@ export function FeedbackDialog({ children, defaultToolId }: FeedbackDialogProps)
               )}
             />
 
-            <div className="flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setOpen(false)}
-              >
-                取消
-              </Button>
-              <Button type="submit" disabled={submitting}>
-                {submitting ? "提交中..." : "提交反馈"}
+            <div className="flex justify-end">
+              <Button type="submit" disabled={loading}>
+                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                提交反馈
               </Button>
             </div>
           </form>

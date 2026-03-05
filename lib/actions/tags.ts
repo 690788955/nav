@@ -1,59 +1,28 @@
 "use server"
 
-import { cookies } from "next/headers"
-import { revalidatePath } from "next/cache"
 import { prisma } from "@/lib/prisma"
+import { revalidatePath } from "next/cache"
+import { cookies } from "next/headers"
 import { generateTagSlug } from "@/lib/utils"
 
-type TagFilters = {
+export async function getTags(params?: {
   isOfficial?: boolean
   isApproved?: boolean
-}
-
-type CreateTagData = {
-  name: string
-  isOfficial?: boolean
-  isApproved?: boolean
-}
-
-type UpdateTagData = {
-  name?: string
-  isOfficial?: boolean
-  isApproved?: boolean
-}
-
-async function isAdminUser() {
-  const cookieStore = await cookies()
-  const userId = cookieStore.get("user_id")?.value
-  const userRole = cookieStore.get("user_role")?.value
-
-  if (!userId || userRole !== "ADMIN") {
-    return false
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { role: true },
-  })
-
-  return user?.role === "ADMIN"
-}
-
-export async function getTags(params: TagFilters = {}) {
+}) {
   try {
-    const where: TagFilters = {}
+    const where: any = {}
 
-    if (params.isOfficial !== undefined) {
+    if (params?.isOfficial !== undefined) {
       where.isOfficial = params.isOfficial
     }
 
-    if (params.isApproved !== undefined) {
+    if (params?.isApproved !== undefined) {
       where.isApproved = params.isApproved
     }
 
     const tags = await prisma.tag.findMany({
       where,
-      orderBy: { name: "asc" },
+      orderBy: { name: 'asc' },
     })
 
     return { success: true, data: tags }
@@ -63,59 +32,59 @@ export async function getTags(params: TagFilters = {}) {
   }
 }
 
-export async function createTag(data: CreateTagData) {
+export async function createTag(data: {
+  name: string
+  isOfficial?: boolean
+}) {
   try {
-    const admin = await isAdminUser()
+    const slug = generateTagSlug(data.name)
+
     const tag = await prisma.tag.create({
       data: {
         name: data.name,
-        slug: generateTagSlug(data.name),
-        isOfficial: admin ? (data.isOfficial ?? false) : false,
-        isApproved: admin ? (data.isApproved ?? false) : false,
+        slug,
+        isOfficial: data.isOfficial || false,
+        isApproved: data.isOfficial || false, // Official tags are auto-approved
       },
     })
 
     revalidatePath("/admin/tags")
-    revalidatePath("/")
 
     return { success: true, data: tag }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating tag:", error)
+    
+    // Handle unique constraint violation
+    if (error.code === 'P2002') {
+      return { success: false, error: "Tag name or slug already exists" }
+    }
+
     return { success: false, error: "Failed to create tag" }
   }
 }
 
-export async function updateTag(id: string, data: UpdateTagData) {
+export async function updateTag(
+  id: string,
+  data: {
+    name?: string
+    isOfficial?: boolean
+    isApproved?: boolean
+  }
+) {
   try {
-    const admin = await isAdminUser()
-    if (!admin) {
-      return { success: false, error: "Admin access required" }
+    // Check admin auth
+    const cookieStore = await cookies()
+    const userRole = cookieStore.get('user_role')?.value
+
+    if (userRole !== 'ADMIN') {
+      return { success: false, error: "Unauthorized" }
     }
 
-    const existingTag = await prisma.tag.findUnique({
-      where: { id },
-      select: { id: true, name: true },
-    })
+    const updateData: any = { ...data }
 
-    if (!existingTag) {
-      return { success: false, error: "Tag not found" }
-    }
-
-    const updateData: UpdateTagData & { slug?: string } = {}
-
-    if (data.name !== undefined) {
-      updateData.name = data.name
-      if (data.name !== existingTag.name) {
-        updateData.slug = generateTagSlug(data.name)
-      }
-    }
-
-    if (data.isOfficial !== undefined) {
-      updateData.isOfficial = data.isOfficial
-    }
-
-    if (data.isApproved !== undefined) {
-      updateData.isApproved = data.isApproved
+    // Regenerate slug if name changes
+    if (data.name) {
+      updateData.slug = generateTagSlug(data.name)
     }
 
     const tag = await prisma.tag.update({
@@ -124,20 +93,28 @@ export async function updateTag(id: string, data: UpdateTagData) {
     })
 
     revalidatePath("/admin/tags")
-    revalidatePath("/")
 
     return { success: true, data: tag }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error updating tag:", error)
+
+    // Handle unique constraint violation
+    if (error.code === 'P2002') {
+      return { success: false, error: "Tag name or slug already exists" }
+    }
+
     return { success: false, error: "Failed to update tag" }
   }
 }
 
 export async function deleteTag(id: string) {
   try {
-    const admin = await isAdminUser()
-    if (!admin) {
-      return { success: false, error: "Admin access required" }
+    // Check admin auth
+    const cookieStore = await cookies()
+    const userRole = cookieStore.get('user_role')?.value
+
+    if (userRole !== 'ADMIN') {
+      return { success: false, error: "Unauthorized" }
     }
 
     await prisma.tag.delete({
@@ -145,7 +122,6 @@ export async function deleteTag(id: string) {
     })
 
     revalidatePath("/admin/tags")
-    revalidatePath("/")
 
     return { success: true }
   } catch (error) {
@@ -156,9 +132,12 @@ export async function deleteTag(id: string) {
 
 export async function approveTag(id: string) {
   try {
-    const admin = await isAdminUser()
-    if (!admin) {
-      return { success: false, error: "Admin access required" }
+    // Check admin auth
+    const cookieStore = await cookies()
+    const userRole = cookieStore.get('user_role')?.value
+
+    if (userRole !== 'ADMIN') {
+      return { success: false, error: "Unauthorized" }
     }
 
     const tag = await prisma.tag.update({
@@ -167,7 +146,6 @@ export async function approveTag(id: string) {
     })
 
     revalidatePath("/admin/tags")
-    revalidatePath("/")
 
     return { success: true, data: tag }
   } catch (error) {

@@ -55,12 +55,12 @@ const navItems = [
   {
     title: "反馈管理",
     href: "/admin/feedback",
-    icon: MessageSquare,
+    icon: Users,
   },
   {
     title: "标签管理",
     href: "/admin/tags",
-    icon: Tag,
+    icon: Database,
   },
   {
     title: "数据管理",
