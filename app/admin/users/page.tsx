@@ -62,18 +62,25 @@ export default function AdminSettingsPage() {
   const loadSettings = async () => {
     const result = await getSystemSettings()
     if (result.success && result.data) {
-      setSettings({
-        ...result.data,
+      setSettings((prev) => ({
+        id: result.data.id ?? prev.id,
+        siteName: result.data.siteName ?? prev.siteName,
+        siteDescription: result.data.siteDescription ?? prev.siteDescription,
         siteLogo: result.data.siteLogo || undefined,
         favicon: result.data.favicon || undefined,
+        pageSize: result.data.pageSize ?? prev.pageSize,
+        showFooter: result.data.showFooter ?? prev.showFooter,
+        footerCopyright: result.data.footerCopyright ?? prev.footerCopyright,
         footerLinks: (result.data.footerLinks as Array<{ name: string; url: string }>) || [],
-        githubUrl: result.data.githubUrl || undefined,
-        showIcp: result.data.showIcp || false,
-        icpNumber: result.data.icpNumber || undefined,
-        icpLink: result.data.icpLink || undefined,
+        showAdminLink: result.data.showAdminLink ?? prev.showAdminLink,
+        enableVisitTracking: result.data.enableVisitTracking ?? prev.enableVisitTracking,
         enableSubmission: result.data.enableSubmission ?? true,
         submissionMaxPerDay: result.data.submissionMaxPerDay ?? 3,
-      })
+        githubUrl: result.data.githubUrl || undefined,
+        showIcp: result.data.showIcp ?? false,
+        icpNumber: result.data.icpNumber || undefined,
+        icpLink: result.data.icpLink || undefined,
+      }))
     }
   }
 

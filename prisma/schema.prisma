@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -32,9 +32,15 @@ model Site {
   category         Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   isPublished      Boolean   @default(false)
   order            Int       @default(0)
+  tags             String    @default("[]")
+  platforms        String    @default("[]")
+  screenshots      String    @default("[]")
+  useCases         String    @default("[]")
+  likesCount       Int       @default(0)
   createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
   visits           Visit[]
+  feedbacks        Feedback[]
 
   @@index([categoryId])
   @@index([isPublished])
@@ -49,13 +55,9 @@ model User {
   password  String
   name      String?
   avatar    String?
-  role      UserRole @default(ADMIN)
+  role      String   @default("ADMIN")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-}
-
-enum UserRole {
-  ADMIN
 }
 
 model SystemSettings {
@@ -68,7 +70,7 @@ model SystemSettings {
   // Footer settings
   showFooter        Boolean  @default(true) @map("show_footer")
   footerCopyright  String   @map("footer_copyright")  // 默认值由 seed.ts 动态生成
-  footerLinks      Json     @default("[]") @map("footer_links")
+  footerLinks      String   @default("[]") @map("footer_links")
   showAdminLink    Boolean  @default(true) @map("show_admin_link")
   // ICP filing settings (备案信息)
   showIcp          Boolean  @default(false) @map("show_icp")
@@ -99,4 +101,30 @@ model Visit {
   @@index([siteId])
   @@index([visitedAt])
   @@index([siteId, visitedAt])
+}
+
+model Feedback {
+  id          String   @id @default(cuid())
+  siteId      String
+  site        Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  rating      Int
+  comment     String?
+  email       String?
+  likesCount  Int      @default(0)
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([siteId])
+  @@index([likesCount])
+  @@index([createdAt])
+}
+
+model Tag {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  color     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

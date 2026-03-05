@@ -3,7 +3,7 @@
 import { prisma } from "./prisma"
 import { revalidatePath } from "next/cache"
 import { Prisma } from "@prisma/client"
-import bcrypt from "bcrypt"
+import bcrypt from "bcryptjs"
 
 // ==================== Categories ====================
 
@@ -72,8 +72,8 @@ export async function getCategoriesWithPagination(params: {
 
     if (params.search) {
       where.OR = [
-        { name: { contains: params.search, mode: 'insensitive' } },
-        { slug: { contains: params.search, mode: 'insensitive' } },
+        { name: { contains: params.search } },
+        { slug: { contains: params.search } },
       ]
     }
 
@@ -217,9 +217,9 @@ export async function getSitesWithPagination(params: {
 
     if (params.search) {
       where.OR = [
-        { name: { contains: params.search, mode: 'insensitive' } },
-        { description: { contains: params.search, mode: 'insensitive' } },
-        { url: { contains: params.search, mode: 'insensitive' } },
+        { name: { contains: params.search } },
+        { description: { contains: params.search } },
+        { url: { contains: params.search } },
       ]
     }
 
@@ -425,8 +425,8 @@ export async function getUsersWithPagination(params: {
 
     if (params.search) {
       where.OR = [
-        { email: { contains: params.search, mode: 'insensitive' } },
-        { name: { contains: params.search, mode: 'insensitive' } },
+        { email: { contains: params.search } },
+        { name: { contains: params.search } },
       ]
     }
 
@@ -517,9 +517,9 @@ export async function searchSites(query: string) {
           { isPublished: true },
           {
             OR: [
-              { name: { contains: query, mode: "insensitive" } },
-              { description: { contains: query, mode: "insensitive" } },
-              { url: { contains: query, mode: "insensitive" } },
+              { name: { contains: query } },
+              { description: { contains: query } },
+              { url: { contains: query } },
             ],
           },
         ],
@@ -556,7 +556,13 @@ export async function getSystemSettings() {
       settings = await prisma.systemSettings.findFirst()
     }
 
-    return { success: true, data: settings }
+    // 解析 footerLinks JSON 字符串（SQLite 存储为 String）
+    const parsedSettings = {
+      ...settings,
+      footerLinks: settings?.footerLinks ? JSON.parse(settings.footerLinks as string) : [],
+    }
+
+    return { success: true, data: parsedSettings }
   } catch (error) {
     console.error("Error fetching system settings:", error)
     return { success: false, error: "Failed to fetch system settings" }
@@ -582,19 +588,25 @@ export async function updateSystemSettings(data: {
     // 获取第一条设置记录
     let settings = await prisma.systemSettings.findFirst()
 
+    // footerLinks 需要序列化为 JSON 字符串（SQLite 不支持 Json 类型）
+    const dbData = {
+      ...data,
+      footerLinks: data.footerLinks ? JSON.stringify(data.footerLinks) : undefined,
+    }
+
     if (!settings) {
       // 如果不存在，创建新的
       settings = await prisma.systemSettings.create({
         data: {
-          ...data,
-          footerCopyright: data.footerCopyright || `© ${new Date().getFullYear()} Conan Nav. All rights reserved.`,
+          ...dbData,
+          footerCopyright: dbData.footerCopyright || `© ${new Date().getFullYear()} Conan Nav. All rights reserved.`,
         },
       })
     } else {
       // 更新现有记录
       settings = await prisma.systemSettings.update({
         where: { id: settings.id },
-        data,
+        data: dbData,
       })
     }
 
