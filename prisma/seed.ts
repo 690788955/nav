@@ -196,9 +196,7 @@ async function main() {
         pageSize: 20,
         showFooter: true,
         footerCopyright: `© ${new Date().getFullYear()} Conan Nav. All rights reserved.`,
-        footerLinks: [
-          { name: 'GitHub', url: 'https://github.com/kenanlabs/nav' }
-        ],
+        footerLinks: JSON.stringify([{ name: 'GitHub', url: 'https://github.com/kenanlabs/nav' }]),
         showAdminLink: true,
         enableVisitTracking: true,
         githubUrl: 'https://github.com/kenanlabs/nav',

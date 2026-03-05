@@ -66,7 +66,7 @@ export default function AdminSettingsPage() {
         ...result.data,
         siteLogo: result.data.siteLogo || undefined,
         favicon: result.data.favicon || undefined,
-        footerLinks: (result.data.footerLinks as Array<{ name: string; url: string }>) || [],
+        footerLinks: (result.data.footerLinks as unknown as Array<{ name: string; url: string }>) || [],
         githubUrl: result.data.githubUrl || undefined,
         showIcp: result.data.showIcp || false,
         icpNumber: result.data.icpNumber || undefined,

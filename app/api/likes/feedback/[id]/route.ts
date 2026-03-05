@@ -3,9 +3,10 @@ import { likeFeedback, unlikeFeedback } from "@/lib/actions/likes"
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const result = await likeFeedback(params.id)
+  const { id } = await params
+  const result = await likeFeedback(id)
   
   if (!result.success) {
     return NextResponse.json({ error: result.error }, { status: 500 })
@@ -16,9 +17,10 @@ export async function POST(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const result = await unlikeFeedback(params.id)
+  const { id } = await params
+  const result = await unlikeFeedback(id)
   
   if (!result.success) {
     return NextResponse.json({ error: result.error }, { status: 500 })

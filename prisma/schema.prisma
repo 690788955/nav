@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -55,14 +55,11 @@ model User {
   password  String
   name      String?
   avatar    String?
-  role      UserRole @default(ADMIN)
+  role      String   @default("ADMIN")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-enum UserRole {
-  ADMIN
-}
 
 model SystemSettings {
   id               String   @id @default("default") @map("id")
@@ -74,7 +71,7 @@ model SystemSettings {
   // Footer settings
   showFooter        Boolean  @default(true) @map("show_footer")
   footerCopyright  String   @map("footer_copyright")  // 默认值由 seed.ts 动态生成
-  footerLinks      Json     @default("[]") @map("footer_links")
+  footerLinks      String   @default("[]") @map("footer_links")
   showAdminLink    Boolean  @default(true) @map("show_admin_link")
   // ICP filing settings (备案信息)
   showIcp          Boolean  @default(false) @map("show_icp")

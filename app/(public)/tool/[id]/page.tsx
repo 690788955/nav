@@ -8,8 +8,9 @@ import { ExternalLink, Heart, ThumbsUp, Monitor, Smartphone, Globe } from "lucid
 import { FavoriteButton } from "@/components/layout/favorite-button"
 import { LikeButton } from "@/components/layout/like-button"
 
-export default async function ToolDetailPage({ params }: { params: { id: string } }) {
-  const result = await getSiteById(params.id)
+export default async function ToolDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const result = await getSiteById(id)
 
   if (!result.success || !result.data) {
     notFound()

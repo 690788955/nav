@@ -72,8 +72,8 @@ export async function getCategoriesWithPagination(params: {
 
     if (params.search) {
       where.OR = [
-        { name: { contains: params.search, mode: 'insensitive' } },
-        { slug: { contains: params.search, mode: 'insensitive' } },
+        { name: { contains: params.search } },
+        { slug: { contains: params.search } },
       ]
     }
 
@@ -217,9 +217,9 @@ export async function getSitesWithPagination(params: {
 
     if (params.search) {
       where.OR = [
-        { name: { contains: params.search, mode: 'insensitive' } },
-        { description: { contains: params.search, mode: 'insensitive' } },
-        { url: { contains: params.search, mode: 'insensitive' } },
+        { name: { contains: params.search } },
+        { description: { contains: params.search } },
+        { url: { contains: params.search } },
       ]
     }
 
@@ -359,11 +359,12 @@ export async function updateSite(id: string, data: {
   useCases?: string
 }) {
   try {
-    const updateData = {
-      ...data,
-      ...(data.tags !== undefined && { tags: JSON.stringify(data.tags) }),
-      ...(data.platforms !== undefined && { platforms: JSON.stringify(data.platforms) }),
-      ...(data.screenshots !== undefined && { screenshots: JSON.stringify(data.screenshots) }),
+    const { tags, platforms, screenshots, ...restData } = data
+    const updateData: any = {
+      ...restData,
+      ...(tags !== undefined && { tags: JSON.stringify(tags) }),
+      ...(platforms !== undefined && { platforms: JSON.stringify(platforms) }),
+      ...(screenshots !== undefined && { screenshots: JSON.stringify(screenshots) }),
     }
     const site = await prisma.site.update({
       where: { id },
@@ -443,8 +444,8 @@ export async function getUsersWithPagination(params: {
 
     if (params.search) {
       where.OR = [
-        { email: { contains: params.search, mode: 'insensitive' } },
-        { name: { contains: params.search, mode: 'insensitive' } },
+        { email: { contains: params.search } },
+        { name: { contains: params.search } },
       ]
     }
 
@@ -535,9 +536,9 @@ export async function searchSites(query: string) {
           { isPublished: true },
           {
             OR: [
-              { name: { contains: query, mode: "insensitive" } },
-              { description: { contains: query, mode: "insensitive" } },
-              { url: { contains: query, mode: "insensitive" } },
+              { name: { contains: query } },
+              { description: { contains: query } },
+              { url: { contains: query } },
             ],
           },
         ],
@@ -600,11 +601,17 @@ export async function updateSystemSettings(data: {
     // 获取第一条设置记录
     let settings = await prisma.systemSettings.findFirst()
 
+    // Serialize footerLinks if provided
+    const processedData: any = {
+      ...data,
+      ...(data.footerLinks !== undefined && { footerLinks: JSON.stringify(data.footerLinks) }),
+    }
+
     if (!settings) {
       // 如果不存在，创建新的
       settings = await prisma.systemSettings.create({
         data: {
-          ...data,
+          ...processedData,
           footerCopyright: data.footerCopyright || `© ${new Date().getFullYear()} Conan Nav. All rights reserved.`,
         },
       })
@@ -612,7 +619,7 @@ export async function updateSystemSettings(data: {
       // 更新现有记录
       settings = await prisma.systemSettings.update({
         where: { id: settings.id },
-        data,
+        data: processedData,
       })
     }
 

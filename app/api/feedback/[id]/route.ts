@@ -3,9 +3,10 @@ import { deleteFeedback } from "@/lib/actions/feedback"
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const result = await deleteFeedback(params.id)
+  const { id } = await params
+  const result = await deleteFeedback(id)
   
   if (!result.success) {
     return NextResponse.json({ error: result.error }, { status: result.error === 'Unauthorized' ? 403 : 500 })
