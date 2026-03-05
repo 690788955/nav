@@ -1,22 +1,7 @@
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
-import { generateTagSlug } from '../lib/utils'
 
 const prisma = new PrismaClient()
-
-// 预设标签
-const presetTags = [
-  { name: '设计', slug: 'design' },
-  { name: '开发', slug: 'dev' },
-  { name: 'AI', slug: 'ai' },
-  { name: '效率工具', slug: 'productivity' },
-  { name: '营销', slug: 'marketing' },
-  { name: '数据分析', slug: 'analytics' },
-  { name: '协作', slug: 'collaboration' },
-  { name: '学习', slug: 'learning' },
-  { name: '娱乐', slug: 'entertainment' },
-  { name: '其他', slug: 'other' },
-]
 
 // 基础分类（少量）
 const basicCategories = [
@@ -28,16 +13,16 @@ const basicCategories = [
 
 // 预设标签（官方标签）
 const presetTags = [
-  { name: '设计', isOfficial: true, isApproved: true },
-  { name: '开发', isOfficial: true, isApproved: true },
-  { name: 'AI', isOfficial: true, isApproved: true },
-  { name: '效率工具', isOfficial: true, isApproved: true },
-  { name: '营销', isOfficial: true, isApproved: true },
-  { name: '数据分析', isOfficial: true, isApproved: true },
-  { name: '协作', isOfficial: true, isApproved: true },
-  { name: '学习', isOfficial: true, isApproved: true },
-  { name: '娱乐', isOfficial: true, isApproved: true },
-  { name: '其他', isOfficial: true, isApproved: true },
+  { name: '设计', slug: 'design' },
+  { name: '开发', slug: 'dev' },
+  { name: 'AI', slug: 'ai' },
+  { name: '效率工具', slug: 'productivity' },
+  { name: '营销', slug: 'marketing' },
+  { name: '数据分析', slug: 'analytics' },
+  { name: '协作', slug: 'collaboration' },
+  { name: '学习', slug: 'learning' },
+  { name: '娱乐', slug: 'entertainment' },
+  { name: '其他', slug: 'other' },
 ]
 
 // 完整分类（大量）
@@ -277,35 +262,6 @@ async function main() {
   }
 
   console.log(`\n📂 分类总数: ${createdCategories.length}\n`)
-
-  // 4.5 创建预设标签
-  console.log('🏷️  创建预设标签...')
-  const createdTags = []
-
-  for (const tag of presetTags) {
-    const slug = generateTagSlug(tag.name)
-    const existing = await prisma.tag.findUnique({
-      where: { slug },
-    })
-
-    if (!existing) {
-      const created = await prisma.tag.create({
-        data: {
-          name: tag.name,
-          slug,
-          isOfficial: tag.isOfficial,
-          isApproved: tag.isApproved,
-        },
-      })
-      createdTags.push(created)
-      console.log(`  ✓ 创建标签: ${created.name}`)
-    } else {
-      createdTags.push(existing)
-      console.log(`  - 标签已存在: ${existing.name}`)
-    }
-  }
-
-  console.log(`\n📂 标签总数: ${createdTags.length}\n`)
 
   // 5. 创建网站
   console.log('🔗 创建网站...')

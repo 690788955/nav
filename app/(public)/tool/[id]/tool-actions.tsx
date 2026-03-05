@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Heart, ThumbsUp } from "lucide-react"
-import useFavorites from "@/hooks/use-favorites"
+import { useFavorites } from "@/hooks/use-favorites"
 import { useLikes } from "@/hooks/use-likes"
 
 interface ToolActionsProps {
@@ -21,15 +21,15 @@ export function ToolActions({ site }: ToolActionsProps) {
 
   const mounted = favoritesMounted && likesMounted
   const favoriteActive = mounted && isFavorite(site.id)
-  const likedActive = mounted && isLiked("site", site.id)
+  const likedActive = mounted && isLiked(site.id, "site")
 
   const handleFavoriteClick = () => {
     toggleFavorite(site.id)
   }
 
   const handleLikeClick = async () => {
-    const currentlyLiked = isLiked("site", site.id)
-    toggleLike("site", site.id)
+    const currentlyLiked = isLiked(site.id, "site")
+    toggleLike(site.id, "site")
     setLikesCount((prev) => Math.max(0, prev + (currentlyLiked ? -1 : 1)))
 
     try {
@@ -46,7 +46,7 @@ export function ToolActions({ site }: ToolActionsProps) {
         setLikesCount(Math.max(0, payload.data.likesCount))
       }
     } catch {
-      toggleLike("site", site.id)
+      toggleLike(site.id, "site")
       setLikesCount((prev) => Math.max(0, prev + (currentlyLiked ? 1 : -1)))
     }
   }

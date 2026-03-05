@@ -52,7 +52,6 @@ export function SiteCard({ site }: SiteCardProps) {
   const { service } = useFaviconService()
   const { toggleFavorite, isFavorite, mounted: favMounted } = useFavorites()
   const { toggleLike, isLiked, mounted: likeMounted } = useLikes()
-  const [likesCount, setLikesCount] = useState(0)
 
   // 使用 useMemo 优化 favicon URL 计算
   // 优先级：用户配置 > 选中的 Favicon 服务

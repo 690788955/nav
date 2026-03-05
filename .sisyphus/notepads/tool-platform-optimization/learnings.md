@@ -33,3 +33,8 @@
 - Seed script remains idempotent: can run multiple times without errors (checks existence first)
 - Prisma Client regeneration: npx prisma generate required after schema changes (Tag model addition)
 - bcrypt import issue: @types/bcrypt has no default export (pre-existing, doesn't affect runtime)
+
+## Build Repair - Merge Artifact Cleanup (2026-03-06)
+- Build failure root cause was duplicated merge blocks inside `prisma/seed.ts` (duplicate `createdTags` declaration and mixed tag-shape assumptions).
+- Effective repair pattern: align broken file with verified worktree logic while preserving current repo dependency reality (`bcryptjs` in main repo).
+- Validation sequence that worked: LSP diagnostics on touched TS/TSX files first, then full `npm run build` to confirm zero type errors.
