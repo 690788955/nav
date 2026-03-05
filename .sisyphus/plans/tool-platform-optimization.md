@@ -209,7 +209,7 @@ Max Concurrent: 6 (Wave 2)
 
 ## TODOs
 
-- [ ] 1. Prisma schema 扩展 + 迁移文件生成
+- [x] 1. Prisma schema 扩展 + 迁移文件生成
 
   **What to do**:
   - 扩展 `Site` 模型，添加新字段：
@@ -332,7 +332,7 @@ Max Concurrent: 6 (Wave 2)
   - Files: `prisma/schema.prisma`, `prisma/migrations/*`
   - Pre-commit: `npx prisma generate`
 
-- [ ] 2. 工具函数：IP 获取 + 速率限制
+- [x] 2. 工具函数：IP 获取 + 速率限制
 
   **What to do**:
   - 创建 `lib/utils/ip.ts`：
@@ -421,7 +421,7 @@ Max Concurrent: 6 (Wave 2)
 
   **Commit**: NO (groups with 1)
 
-- [ ] 3. localStorage Hooks：useFavorites
+- [x] 3. localStorage Hooks：useFavorites
 
   **What to do**:
   - 创建 `hooks/use-favorites.ts`：
@@ -513,7 +513,7 @@ Max Concurrent: 6 (Wave 2)
 
   **Commit**: NO (groups with 1)
 
-- [ ] 4. localStorage Hooks：useLikes
+- [x] 4. localStorage Hooks：useLikes
 
   **What to do**:
   - 创建 `hooks/use-likes.ts`：
@@ -604,7 +604,7 @@ Max Concurrent: 6 (Wave 2)
 
   **Commit**: NO (groups with 1)
 
-- [ ] 5. Tag slug 生成工具函数
+- [x] 5. Tag slug 生成工具函数
 
   **What to do**:
   - 在 `lib/utils.ts` 中添加 `generateTagSlug(name: string): string` 函数
@@ -673,7 +673,7 @@ Max Concurrent: 6 (Wave 2)
 
   **Commit**: NO (groups with 1)
 
-- [ ] 6. Seed 数据更新：预设标签 + 示例工具扩展
+- [x] 6. Seed 数据更新：预设标签 + 示例工具扩展
 
   **What to do**:
   - 更新 `prisma/seed.ts`：
@@ -742,7 +742,7 @@ Max Concurrent: 6 (Wave 2)
 
   **Commit**: NO (groups with 2)
 
-- [ ] 7. Server Actions：Feedback CRUD
+- [x] 7. Server Actions：Feedback CRUD
 
   **What to do**:
   - 创建 `lib/actions/feedback.ts`：
@@ -853,7 +853,7 @@ Max Concurrent: 6 (Wave 2)
 
   **Commit**: NO (groups with 2)
 
-- [ ] 8. Server Actions：Like toggle
+- [x] 8. Server Actions：Like toggle
 
   **What to do**:
   - 创建 `lib/actions/likes.ts`：
@@ -938,7 +938,7 @@ Max Concurrent: 6 (Wave 2)
 
   **Commit**: NO (groups with 2)
 
-- [ ] 9. Server Actions：Tag CRUD + 审核
+- [x] 9. Server Actions：Tag CRUD + 审核
 
   **What to do**:
   - 创建 `lib/actions/tags.ts`：
@@ -1017,7 +1017,7 @@ Max Concurrent: 6 (Wave 2)
 
   **Commit**: NO (groups with 2)
 
-- [ ] 10. 扩展现有 Site Actions：支持新字段
+- [x] 10. 扩展现有 Site Actions：支持新字段
 
   **What to do**:
   - 修改 `lib/actions.ts` 中的 Site 相关函数：
@@ -1084,7 +1084,7 @@ Max Concurrent: 6 (Wave 2)
 
   **Commit**: NO (groups with 2)
 
-- [ ] 11. API Routes：/api/feedback, /api/likes
+- [x] 11. API Routes：/api/feedback, /api/likes
 
   **What to do**:
   - 创建 `app/api/feedback/route.ts`：

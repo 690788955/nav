@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
+import { generateTagSlug } from '../lib/utils'
 
 const prisma = new PrismaClient()
 
@@ -9,6 +10,20 @@ const basicCategories = [
   { name: '开发资源', slug: 'dev', order: 2 },
   { name: '设计灵感', slug: 'design', order: 3 },
   { name: '学习社区', slug: 'community', order: 4 },
+]
+
+// 预设标签（官方标签）
+const presetTags = [
+  { name: '设计', isOfficial: true, isApproved: true },
+  { name: '开发', isOfficial: true, isApproved: true },
+  { name: 'AI', isOfficial: true, isApproved: true },
+  { name: '效率工具', isOfficial: true, isApproved: true },
+  { name: '营销', isOfficial: true, isApproved: true },
+  { name: '数据分析', isOfficial: true, isApproved: true },
+  { name: '协作', isOfficial: true, isApproved: true },
+  { name: '学习', isOfficial: true, isApproved: true },
+  { name: '娱乐', isOfficial: true, isApproved: true },
+  { name: '其他', isOfficial: true, isApproved: true },
 ]
 
 // 完整分类（大量）
@@ -32,97 +47,109 @@ const basicSites = [
     url: 'https://www.google.com',
     description: '全球最大的搜索引擎',
     categorySlug: 'tools',
+    tags: ['效率工具'],
+    platforms: ['Web', 'Mobile'],
+    useCases: '搜索信息、查询资料',
   },
   {
     name: 'GitHub',
     url: 'https://github.com',
     description: '全球最大的代码托管平台',
     categorySlug: 'dev',
+    tags: ['开发', '协作'],
+    platforms: ['Web'],
+    useCases: '代码托管、版本控制、开源协作',
   },
   {
     name: 'Stack Overflow',
     url: 'https://stackoverflow.com',
     description: '程序员问答社区',
     categorySlug: 'dev',
+    tags: ['开发', '学习'],
+    platforms: ['Web'],
+    useCases: '解决编程问题、学习技术',
   },
   {
     name: 'Figma',
     url: 'https://www.figma.com',
     description: '在线协作设计工具',
     categorySlug: 'design',
+    tags: ['设计', '协作'],
+    platforms: ['Web'],
+    useCases: '界面设计、原型设计、团队协作',
   },
 ]
 
 // 完整网站（大量示例）
 const fullSites = [
   // 常用工具
-  { name: 'Google', url: 'https://www.google.com', description: '全球最大的搜索引擎', categorySlug: 'tools' },
-  { name: 'GitHub', url: 'https://github.com', description: '全球最大的代码托管平台', categorySlug: 'tools' },
-  { name: 'Stack Overflow', url: 'https://stackoverflow.com', description: '程序员问答社区', categorySlug: 'tools' },
-  { name: 'ChatGPT', url: 'https://chat.openai.com', description: 'OpenAI 的 AI 聊天机器人', categorySlug: 'tools' },
-  { name: 'Notion', url: 'https://www.notion.so', description: '一体化工作空间', categorySlug: 'tools' },
+  { name: 'Google', url: 'https://www.google.com', description: '全球最大的搜索引擎', categorySlug: 'tools', tags: ['效率工具'], platforms: ['Web', 'Mobile'], useCases: '搜索信息、查询资料' },
+  { name: 'GitHub', url: 'https://github.com', description: '全球最大的代码托管平台', categorySlug: 'tools', tags: ['开发', '协作'], platforms: ['Web'], useCases: '代码托管、版本控制' },
+  { name: 'Stack Overflow', url: 'https://stackoverflow.com', description: '程序员问答社区', categorySlug: 'tools', tags: ['开发', '学习'], platforms: ['Web'], useCases: '解决编程问题' },
+  { name: 'ChatGPT', url: 'https://chat.openai.com', description: 'OpenAI 的 AI 聊天机器人', categorySlug: 'tools', tags: ['AI', '效率工具'], platforms: ['Web', 'Mobile'], useCases: '内容生成、问题解答、代码协助' },
+  { name: 'Notion', url: 'https://www.notion.so', description: '一体化工作空间', categorySlug: 'tools', tags: ['效率工具', '协作'], platforms: ['Web', 'Mobile', 'Desktop'], useCases: '笔记、任务管理、知识库' },
 
   // 开发工具
-  { name: 'VS Code', url: 'https://code.visualstudio.com', description: '强大的代码编辑器', categorySlug: 'dev' },
-  { name: 'Vercel', url: 'https://vercel.com', description: 'Next.js 开发团队推出的部署平台', categorySlug: 'dev' },
-  { name: 'React', url: 'https://react.dev', description: 'React 官方文档', categorySlug: 'dev' },
-  { name: 'Next.js', url: 'https://nextjs.org', description: 'React 全栈框架', categorySlug: 'dev' },
-  { name: 'Tailwind CSS', url: 'https://tailwindcss.com', description: '实用优先的 CSS 框架', categorySlug: 'dev' },
+  { name: 'VS Code', url: 'https://code.visualstudio.com', description: '强大的代码编辑器', categorySlug: 'dev', tags: ['开发'], platforms: ['Desktop'], useCases: '代码编辑、开发' },
+  { name: 'Vercel', url: 'https://vercel.com', description: 'Next.js 开发团队推出的部署平台', categorySlug: 'dev', tags: ['开发'], platforms: ['Web'], useCases: '应用部署、CI/CD' },
+  { name: 'React', url: 'https://react.dev', description: 'React 官方文档', categorySlug: 'dev', tags: ['开发', '学习'], platforms: ['Web'], useCases: '学习 React、查阅文档' },
+  { name: 'Next.js', url: 'https://nextjs.org', description: 'React 全栈框架', categorySlug: 'dev', tags: ['开发', '学习'], platforms: ['Web'], useCases: '全栈开发、学习框架' },
+  { name: 'Tailwind CSS', url: 'https://tailwindcss.com', description: '实用优先的 CSS 框架', categorySlug: 'dev', tags: ['开发', '设计'], platforms: ['Web'], useCases: '快速样式开发' },
 
   // 设计资源
-  { name: 'Dribbble', url: 'https://dribbble.com', description: '设计师作品分享社区', categorySlug: 'design' },
-  { name: 'Behance', url: 'https://www.behance.net', description: 'Adobe 创意作品展示平台', categorySlug: 'design' },
-  { name: 'Figma', url: 'https://www.figma.com', description: '在线协作设计工具', categorySlug: 'design' },
-  { name: 'shadcn/ui', url: 'https://ui.shadcn.com', description: '精美的 React 组件库', categorySlug: 'design' },
-  { name: 'Unsplash', url: 'https://unsplash.com', description: '免费高质量图片资源', categorySlug: 'design' },
+  { name: 'Dribbble', url: 'https://dribbble.com', description: '设计师作品分享社区', categorySlug: 'design', tags: ['设计', '学习'], platforms: ['Web'], useCases: '设计灵感、作品展示' },
+  { name: 'Behance', url: 'https://www.behance.net', description: 'Adobe 创意作品展示平台', categorySlug: 'design', tags: ['设计', '学习'], platforms: ['Web'], useCases: '设计灵感、作品集' },
+  { name: 'Figma', url: 'https://www.figma.com', description: '在线协作设计工具', categorySlug: 'design', tags: ['设计', '协作'], platforms: ['Web'], useCases: '界面设计、原型设计' },
+  { name: 'shadcn/ui', url: 'https://ui.shadcn.com', description: '精美的 React 组件库', categorySlug: 'design', tags: ['设计', '开发'], platforms: ['Web'], useCases: '组件参考、UI 开发' },
+  { name: 'Unsplash', url: 'https://unsplash.com', description: '免费高质量图片资源', categorySlug: 'design', tags: ['设计'], platforms: ['Web'], useCases: '获取免费图片素材' },
 
   // 学习资源
-  { name: 'MDN Web Docs', url: 'https://developer.mozilla.org', description: 'Web 开发权威文档', categorySlug: 'learning' },
-  { name: 'freeCodeCamp', url: 'https://www.freecodecamp.org', description: '免费编程学习平台', categorySlug: 'learning' },
-  { name: 'LeetCode', url: 'https://leetcode.cn', description: '算法刷题平台', categorySlug: 'learning' },
-  { name: 'Coursera', url: 'https://www.coursera.org', description: '在线课程学习平台', categorySlug: 'learning' },
-  { name: 'YouTube', url: 'https://www.youtube.com', description: '全球最大的视频分享平台', categorySlug: 'learning' },
+  { name: 'MDN Web Docs', url: 'https://developer.mozilla.org', description: 'Web 开发权威文档', categorySlug: 'learning', tags: ['开发', '学习'], platforms: ['Web'], useCases: '学习 Web 技术、查阅文档' },
+  { name: 'freeCodeCamp', url: 'https://www.freecodecamp.org', description: '免费编程学习平台', categorySlug: 'learning', tags: ['学习', '开发'], platforms: ['Web'], useCases: '免费编程课程' },
+  { name: 'LeetCode', url: 'https://leetcode.cn', description: '算法刷题平台', categorySlug: 'learning', tags: ['学习', '开发'], platforms: ['Web', 'Mobile'], useCases: '算法练习、面试准备' },
+  { name: 'Coursera', url: 'https://www.coursera.org', description: '在线课程学习平台', categorySlug: 'learning', tags: ['学习'], platforms: ['Web', 'Mobile'], useCases: '在线学习、获取证书' },
+  { name: 'YouTube', url: 'https://www.youtube.com', description: '全球最大的视频分享平台', categorySlug: 'learning', tags: ['学习', '娱乐'], platforms: ['Web', 'Mobile'], useCases: '学习视频、娱乐' },
 
   // AI 工具
-  { name: 'Claude', url: 'https://claude.ai', description: 'Anthropic 推出的 AI 助手', categorySlug: 'ai' },
-  { name: 'Midjourney', url: 'https://www.midjourney.com', description: 'AI 图像生成工具', categorySlug: 'ai' },
-  { name: 'Hugging Face', url: 'https://huggingface.co', description: 'AI 模型社区', categorySlug: 'ai' },
-  { name: 'Perplexity', url: 'https://www.perplexity.ai', description: 'AI 搜索引擎', categorySlug: 'ai' },
-  { name: 'Runway', url: 'https://runwayml.com', description: 'AI 视频编辑工具', categorySlug: 'ai' },
+  { name: 'Claude', url: 'https://claude.ai', description: 'Anthropic 推出的 AI 助手', categorySlug: 'ai', tags: ['AI', '效率工具'], platforms: ['Web'], useCases: '内容生成、问题解答' },
+  { name: 'Midjourney', url: 'https://www.midjourney.com', description: 'AI 图像生成工具', categorySlug: 'ai', tags: ['AI', '设计'], platforms: ['Web'], useCases: 'AI 图像生成' },
+  { name: 'Hugging Face', url: 'https://huggingface.co', description: 'AI 模型社区', categorySlug: 'ai', tags: ['AI', '开发'], platforms: ['Web'], useCases: 'AI 模型下载、部署' },
+  { name: 'Perplexity', url: 'https://www.perplexity.ai', description: 'AI 搜索引擎', categorySlug: 'ai', tags: ['AI', '效率工具'], platforms: ['Web', 'Mobile'], useCases: 'AI 搜索、信息查询' },
+  { name: 'Runway', url: 'https://runwayml.com', description: 'AI 视频编辑工具', categorySlug: 'ai', tags: ['AI', '设计'], platforms: ['Web'], useCases: 'AI 视频编辑' },
 
   // 云服务
-  { name: 'AWS', url: 'https://aws.amazon.com', description: '亚马逊云服务平台', categorySlug: 'cloud' },
-  { name: 'Vercel', url: 'https://vercel.com', description: '前端应用部署平台', categorySlug: 'cloud' },
-  { name: 'Cloudflare', url: 'https://www.cloudflare.com', description: 'CDN 和网络安全服务', categorySlug: 'cloud' },
-  { name: 'Railway', url: 'https://railway.app', description: '简单易用的云平台', categorySlug: 'cloud' },
-  { name: 'Netlify', url: 'https://www.netlify.com', description: '现代化的部署平台', categorySlug: 'cloud' },
+  { name: 'AWS', url: 'https://aws.amazon.com', description: '亚马逊云服务平台', categorySlug: 'cloud', tags: ['开发'], platforms: ['Web'], useCases: '云计算、基础设施' },
+  { name: 'Vercel', url: 'https://vercel.com', description: '前端应用部署平台', categorySlug: 'cloud', tags: ['开发'], platforms: ['Web'], useCases: '前端部署' },
+  { name: 'Cloudflare', url: 'https://www.cloudflare.com', description: 'CDN 和网络安全服务', categorySlug: 'cloud', tags: ['开发'], platforms: ['Web'], useCases: 'CDN、网络安全' },
+  { name: 'Railway', url: 'https://railway.app', description: '简单易用的云平台', categorySlug: 'cloud', tags: ['开发'], platforms: ['Web'], useCases: '应用部署' },
+  { name: 'Netlify', url: 'https://www.netlify.com', description: '现代化的部署平台', categorySlug: 'cloud', tags: ['开发'], platforms: ['Web'], useCases: '静态网站部署' },
 
   // 社区论坛
-  { name: 'Twitter', url: 'https://twitter.com', description: '实时社交网络平台', categorySlug: 'community' },
-  { name: 'Reddit', url: 'https://www.reddit.com', description: '社交新闻聚合网站', categorySlug: 'community' },
-  { name: 'Hacker News', url: 'https://news.ycombinator.com', description: '计算机新闻社区', categorySlug: 'community' },
-  { name: 'Product Hunt', url: 'https://www.producthunt.com', description: '产品发现社区', categorySlug: 'community' },
-  { name: 'Indie Hackers', url: 'https://www.indiehackers.com', description: '独立开发者社区', categorySlug: 'community' },
+  { name: 'Twitter', url: 'https://twitter.com', description: '实时社交网络平台', categorySlug: 'community', tags: ['协作', '营销'], platforms: ['Web', 'Mobile'], useCases: '信息分享、社交' },
+  { name: 'Reddit', url: 'https://www.reddit.com', description: '社交新闻聚合网站', categorySlug: 'community', tags: ['学习', '娱乐'], platforms: ['Web', 'Mobile'], useCases: '社区讨论、信息聚合' },
+  { name: 'Hacker News', url: 'https://news.ycombinator.com', description: '计算机新闻社区', categorySlug: 'community', tags: ['开发', '学习'], platforms: ['Web'], useCases: '技术新闻、行业动态' },
+  { name: 'Product Hunt', url: 'https://www.producthunt.com', description: '产品发现社区', categorySlug: 'community', tags: ['营销', '学习'], platforms: ['Web', 'Mobile'], useCases: '产品发现、营销' },
+  { name: 'Indie Hackers', url: 'https://www.indiehackers.com', description: '独立开发者社区', categorySlug: 'community', tags: ['开发', '学习'], platforms: ['Web'], useCases: '独立开发交流' },
 
   // 文档参考
-  { name: 'Can I Use', url: 'https://caniuse.com', description: '浏览器兼容性查询', categorySlug: 'docs' },
-  { name: 'DevDocs', url: 'https://devdocs.io', description: '多语言文档集合', categorySlug: 'docs' },
-  { name: 'CSS-Tricks', url: 'https://css-tricks.com', description: 'CSS 技巧和教程', categorySlug: 'docs' },
-  { name: 'RegExp101', url: 'https://regex101.com', description: '正则表达式在线测试', categorySlug: 'docs' },
-  { name: 'JSON Editor', url: 'https://jsoneditoronline.org', description: 'JSON 在线编辑器', categorySlug: 'docs' },
+  { name: 'Can I Use', url: 'https://caniuse.com', description: '浏览器兼容性查询', categorySlug: 'docs', tags: ['开发'], platforms: ['Web'], useCases: '查询浏览器兼容性' },
+  { name: 'DevDocs', url: 'https://devdocs.io', description: '多语言文档集合', categorySlug: 'docs', tags: ['开发', '学习'], platforms: ['Web'], useCases: '查阅技术文档' },
+  { name: 'CSS-Tricks', url: 'https://css-tricks.com', description: 'CSS 技巧和教程', categorySlug: 'docs', tags: ['开发', '学习'], platforms: ['Web'], useCases: 'CSS 学习、技巧' },
+  { name: 'RegExp101', url: 'https://regex101.com', description: '正则表达式在线测试', categorySlug: 'docs', tags: ['开发'], platforms: ['Web'], useCases: '正则表达式测试' },
+  { name: 'JSON Editor', url: 'https://jsoneditoronline.org', description: 'JSON 在线编辑器', categorySlug: 'docs', tags: ['开发'], platforms: ['Web'], useCases: 'JSON 编辑、验证' },
 
   // 生产力
-  { name: 'Trello', url: 'https://trello.com', description: '项目管理工具', categorySlug: 'productivity' },
-  { name: 'Slack', url: 'https://slack.com', description: '团队协作工具', categorySlug: 'productivity' },
-  { name: 'Miro', url: 'https://miro.com', description: '在线白板协作工具', categorySlug: 'productivity' },
-  { name: 'Zoom', url: 'https://zoom.us', description: '视频会议工具', categorySlug: 'productivity' },
-  { name: 'Discord', url: 'https://discord.com', description: '游戏社区和语音聊天', categorySlug: 'productivity' },
+  { name: 'Trello', url: 'https://trello.com', description: '项目管理工具', categorySlug: 'productivity', tags: ['效率工具', '协作'], platforms: ['Web', 'Mobile'], useCases: '任务管理、项目协作' },
+  { name: 'Slack', url: 'https://slack.com', description: '团队协作工具', categorySlug: 'productivity', tags: ['协作', '效率工具'], platforms: ['Web', 'Mobile', 'Desktop'], useCases: '团队沟通、协作' },
+  { name: 'Miro', url: 'https://miro.com', description: '在线白板协作工具', categorySlug: 'productivity', tags: ['协作', '设计'], platforms: ['Web'], useCases: '头脑风暴、协作设计' },
+  { name: 'Zoom', url: 'https://zoom.us', description: '视频会议工具', categorySlug: 'productivity', tags: ['协作'], platforms: ['Web', 'Mobile', 'Desktop'], useCases: '视频会议、远程协作' },
+  { name: 'Discord', url: 'https://discord.com', description: '游戏社区和语音聊天', categorySlug: 'productivity', tags: ['协作', '娱乐'], platforms: ['Web', 'Mobile', 'Desktop'], useCases: '社区聊天、语音通话' },
 
   // 娱乐休闲
-  { name: 'Netflix', url: 'https://www.netflix.com', description: '流媒体视频服务', categorySlug: 'entertainment' },
-  { name: 'Spotify', url: 'https://www.spotify.com', description: '音乐流媒体服务', categorySlug: 'entertainment' },
-  { name: 'Twitch', url: 'https://www.twitch.tv', description: '游戏直播平台', categorySlug: 'entertainment' },
-  { name: 'Bilibili', url: 'https://www.bilibili.com', description: '国内知名视频弹幕网站', categorySlug: 'entertainment' },
+  { name: 'Netflix', url: 'https://www.netflix.com', description: '流媒体视频服务', categorySlug: 'entertainment', tags: ['娱乐'], platforms: ['Web', 'Mobile', 'TV'], useCases: '看电影、看剧' },
+  { name: 'Spotify', url: 'https://www.spotify.com', description: '音乐流媒体服务', categorySlug: 'entertainment', tags: ['娱乐'], platforms: ['Web', 'Mobile', 'Desktop'], useCases: '听音乐、播放列表' },
+  { name: 'Twitch', url: 'https://www.twitch.tv', description: '游戏直播平台', categorySlug: 'entertainment', tags: ['娱乐'], platforms: ['Web', 'Mobile'], useCases: '看直播、游戏' },
+  { name: 'Bilibili', url: 'https://www.bilibili.com', description: '国内知名视频弹幕网站', categorySlug: 'entertainment', tags: ['娱乐', '学习'], platforms: ['Web', 'Mobile'], useCases: '看视频、学习' },
 ]
 
 async function main() {
@@ -212,6 +239,35 @@ async function main() {
 
   console.log(`\n📂 分类总数: ${createdCategories.length}\n`)
 
+  // 4.5 创建预设标签
+  console.log('🏷️  创建预设标签...')
+  const createdTags = []
+
+  for (const tag of presetTags) {
+    const slug = generateTagSlug(tag.name)
+    const existing = await prisma.tag.findUnique({
+      where: { slug },
+    })
+
+    if (!existing) {
+      const created = await prisma.tag.create({
+        data: {
+          name: tag.name,
+          slug,
+          isOfficial: tag.isOfficial,
+          isApproved: tag.isApproved,
+        },
+      })
+      createdTags.push(created)
+      console.log(`  ✓ 创建标签: ${created.name}`)
+    } else {
+      createdTags.push(existing)
+      console.log(`  - 标签已存在: ${existing.name}`)
+    }
+  }
+
+  console.log(`\n📂 标签总数: ${createdTags.length}\n`)
+
   // 5. 创建网站
   console.log('🔗 创建网站...')
   let createdCount = 0
@@ -236,6 +292,9 @@ async function main() {
           description: site.description,
           categoryId: category.id,
           isPublished: true,
+          tags: JSON.stringify(site.tags || []),
+          platforms: JSON.stringify(site.platforms || []),
+          useCases: site.useCases || '',
         },
       })
       createdCount++

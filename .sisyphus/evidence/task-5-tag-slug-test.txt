@@ -1,8 +1,0 @@
-Testing generateTagSlug function...
-
-✓ PASS: "人工智能" → "ren-gong-zhi-neng" (expected: "ren-gong-zhi-neng")
-✓ PASS: "AI Tools" → "ai-tools" (expected: "ai-tools")
-✓ PASS: "前端开发" → "qian-duan-kai-fa" (expected: "qian-duan-kai-fa")
-✓ PASS: "Design & UX" → "design-ux" (expected: "design-ux")
-
-Results: 4 passed, 0 failed

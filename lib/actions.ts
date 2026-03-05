@@ -189,7 +189,15 @@ export async function getSites() {
         category: true,
       },
     })
-    return { success: true, data: sites }
+    
+    const parsedSites = sites.map(site => ({
+      ...site,
+      tags: site.tags ? JSON.parse(site.tags) : [],
+      platforms: site.platforms ? JSON.parse(site.platforms) : [],
+      screenshots: site.screenshots ? JSON.parse(site.screenshots) : [],
+    }))
+    
+    return { success: true, data: parsedSites }
   } catch (error) {
     console.error("Error fetching sites:", error)
     return { success: false, error: "Failed to fetch sites" }
@@ -246,9 +254,16 @@ export async function getSitesWithPagination(params: {
       prisma.site.count({ where }),
     ])
 
+    const parsedSites = sites.map(site => ({
+      ...site,
+      tags: site.tags ? JSON.parse(site.tags) : [],
+      platforms: site.platforms ? JSON.parse(site.platforms) : [],
+      screenshots: site.screenshots ? JSON.parse(site.screenshots) : [],
+    }))
+
     return {
       success: true,
-      data: sites,
+      data: parsedSites,
       pagination: {
         page,
         pageSize,
@@ -290,7 +305,15 @@ export async function getSiteById(id: string) {
     if (!site) {
       return { success: false, error: "Site not found" }
     }
-    return { success: true, data: site }
+    
+    const parsedSite = {
+      ...site,
+      tags: site.tags ? JSON.parse(site.tags) : [],
+      platforms: site.platforms ? JSON.parse(site.platforms) : [],
+      screenshots: site.screenshots ? JSON.parse(site.screenshots) : [],
+    }
+    
+    return { success: true, data: parsedSite }
   } catch (error) {
     console.error("Error fetching site:", error)
     return { success: false, error: "Failed to fetch site" }
@@ -307,6 +330,10 @@ export async function createSite(data: {
   categoryId: string
   isPublished?: boolean
   order?: number
+  tags?: string[]
+  platforms?: string[]
+  screenshots?: string[]
+  useCases?: string
 }) {
   try {
     const site = await prisma.site.create({
@@ -320,15 +347,27 @@ export async function createSite(data: {
         categoryId: data.categoryId,
         isPublished: data.isPublished ?? false,
         order: data.order ?? 0,
+        tags: JSON.stringify(data.tags || []),
+        platforms: JSON.stringify(data.platforms || []),
+        screenshots: JSON.stringify(data.screenshots || []),
+        useCases: data.useCases || null,
       },
       include: {
         category: true,
       },
     })
+    
+    const parsedSite = {
+      ...site,
+      tags: JSON.parse(site.tags || "[]"),
+      platforms: JSON.parse(site.platforms || "[]"),
+      screenshots: JSON.parse(site.screenshots || "[]"),
+    }
+    
     revalidatePath("/admin/sites")
     revalidatePath("/")
     revalidatePath(`/category/${site.category?.slug || ''}`)
-    return { success: true, data: site }
+    return { success: true, data: parsedSite }
   } catch (error) {
     console.error("Error creating site:", error)
     return { success: false, error: "Failed to create site" }
@@ -345,19 +384,43 @@ export async function updateSite(id: string, data: {
   categoryId?: string
   isPublished?: boolean
   order?: number
+  tags?: string[]
+  platforms?: string[]
+  screenshots?: string[]
+  useCases?: string
 }) {
   try {
+    const updateData: any = { ...data }
+    
+    if (data.tags !== undefined) {
+      updateData.tags = JSON.stringify(data.tags)
+    }
+    if (data.platforms !== undefined) {
+      updateData.platforms = JSON.stringify(data.platforms)
+    }
+    if (data.screenshots !== undefined) {
+      updateData.screenshots = JSON.stringify(data.screenshots)
+    }
+    
     const site = await prisma.site.update({
       where: { id },
-      data,
+      data: updateData,
       include: {
         category: true,
       },
     })
+    
+    const parsedSite = {
+      ...site,
+      tags: site.tags ? JSON.parse(site.tags) : [],
+      platforms: site.platforms ? JSON.parse(site.platforms) : [],
+      screenshots: site.screenshots ? JSON.parse(site.screenshots) : [],
+    }
+    
     revalidatePath("/admin/sites")
     revalidatePath("/")
     revalidatePath(`/category/${site.category?.slug || ''}`)
-    return { success: true, data: site }
+    return { success: true, data: parsedSite }
   } catch (error) {
     console.error("Error updating site:", error)
     return { success: false, error: "Failed to update site" }
