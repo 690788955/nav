@@ -307,6 +307,10 @@ export async function createSite(data: {
   categoryId: string
   isPublished?: boolean
   order?: number
+  tags?: string[]
+  platforms?: string[]
+  screenshots?: string[]
+  useCases?: string
 }) {
   try {
     const site = await prisma.site.create({
@@ -320,6 +324,10 @@ export async function createSite(data: {
         categoryId: data.categoryId,
         isPublished: data.isPublished ?? false,
         order: data.order ?? 0,
+        tags: data.tags ? JSON.stringify(data.tags) : '[]',
+        platforms: data.platforms ? JSON.stringify(data.platforms) : '[]',
+        screenshots: data.screenshots ? JSON.stringify(data.screenshots) : '[]',
+        useCases: data.useCases || null,
       },
       include: {
         category: true,
@@ -345,11 +353,21 @@ export async function updateSite(id: string, data: {
   categoryId?: string
   isPublished?: boolean
   order?: number
+  tags?: string[]
+  platforms?: string[]
+  screenshots?: string[]
+  useCases?: string
 }) {
   try {
+    const updateData = {
+      ...data,
+      ...(data.tags !== undefined && { tags: JSON.stringify(data.tags) }),
+      ...(data.platforms !== undefined && { platforms: JSON.stringify(data.platforms) }),
+      ...(data.screenshots !== undefined && { screenshots: JSON.stringify(data.screenshots) }),
+    }
     const site = await prisma.site.update({
       where: { id },
-      data,
+      data: updateData,
       include: {
         category: true,
       },
