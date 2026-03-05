@@ -1,10 +1,12 @@
 "use client"
 
-import { useState, useMemo, useEffect, useRef } from "react"
+import { useState, useMemo, useEffect, useRef, type MouseEvent } from "react"
 import Link from "next/link"
 import { Card, CardHeader, CardTitle, CardDescription, CardAction } from "@/components/ui/card"
-import { ExternalLink } from "lucide-react"
+import { ExternalLink, Heart, ThumbsUp } from "lucide-react"
 import { useFaviconService, getFaviconUrl } from "@/hooks/use-favicon-service"
+import useFavorites from "@/hooks/use-favorites"
+import { useLikes } from "@/hooks/use-likes"
 
 // 生成首字母图标（shadcn/ui 简洁风格）
 function getInitialIcon(name: string) {
@@ -32,6 +34,7 @@ interface Site {
   url: string
   description: string
   iconUrl: string | null
+  likesCount?: number
   category?: {
     name: string
   }
@@ -43,8 +46,11 @@ interface SiteCardProps {
 
 export function SiteCard({ site }: SiteCardProps) {
   const [imageLoaded, setImageLoaded] = useState(false)
+  const [likesCount, setLikesCount] = useState(site.likesCount ?? 0)
   const hasTriedLoad = useRef(false)
   const { service } = useFaviconService()
+  const { toggleFavorite, isFavorite, mounted: favoritesMounted } = useFavorites()
+  const { toggleLike, isLiked, mounted: likesMounted } = useLikes()
 
   // 使用 useMemo 优化 favicon URL 计算
   // 优先级：用户配置 > 选中的 Favicon 服务
@@ -68,6 +74,10 @@ export function SiteCard({ site }: SiteCardProps) {
     setImageLoaded(false)
     hasTriedLoad.current = false
   }, [iconSrc])
+
+  useEffect(() => {
+    setLikesCount(site.likesCount ?? 0)
+  }, [site.id, site.likesCount])
 
   // 使用 useEffect + new Image() 预加载图片
   useEffect(() => {
@@ -95,19 +105,82 @@ export function SiteCard({ site }: SiteCardProps) {
     }
   }
 
+  const mounted = favoritesMounted && likesMounted
+  const favoriteActive = mounted && isFavorite(site.id)
+  const likedActive = mounted && isLiked("site", site.id)
+
+  const handleFavoriteClick = (e: MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    toggleFavorite(site.id)
+  }
+
+  const handleLikeClick = async (e: MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+
+    const currentlyLiked = isLiked("site", site.id)
+    toggleLike("site", site.id)
+    setLikesCount((prev) => Math.max(0, prev + (currentlyLiked ? -1 : 1)))
+
+    try {
+      const response = await fetch(`/api/likes/site/${site.id}`, {
+        method: currentlyLiked ? "DELETE" : "POST",
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to update like status")
+      }
+
+      const payload = await response.json()
+      if (typeof payload?.data?.likesCount === "number") {
+        setLikesCount(Math.max(0, payload.data.likesCount))
+      }
+    } catch {
+      // rollback optimistic update when API fails
+      toggleLike("site", site.id)
+      setLikesCount((prev) => Math.max(0, prev + (currentlyLiked ? 1 : -1)))
+    }
+  }
+
   return (
     <Link
       href={site.url}
       target="_blank"
       rel="noopener noreferrer"
       onClick={handleClick}
-      aria-label={`访问 ${site.name}`}
-      className="group block"
+        aria-label={`访问 ${site.name}`}
+        className="group block"
     >
       <Card className="h-full transition-colors hover:bg-muted">
         <CardHeader>
           <CardAction>
-            <ExternalLink className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="flex items-center gap-1">
+              {mounted && (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleFavoriteClick}
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted-foreground/10"
+                    aria-label={favoriteActive ? `取消收藏 ${site.name}` : `收藏 ${site.name}`}
+                  >
+                    <Heart className={`h-4 w-4 ${favoriteActive ? "fill-red-500 text-red-500" : "text-muted-foreground"}`} />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleLikeClick}
+                    className="inline-flex h-7 items-center gap-1 rounded-md px-1.5 text-muted-foreground transition-colors hover:bg-muted-foreground/10"
+                    aria-label={likedActive ? `取消点赞 ${site.name}` : `点赞 ${site.name}`}
+                  >
+                    <ThumbsUp className={`h-4 w-4 ${likedActive ? "fill-blue-500 text-blue-500" : "text-muted-foreground"}`} />
+                    <span className={`text-xs ${likedActive ? "text-blue-500" : "text-muted-foreground"}`}>{likesCount}</span>
+                  </button>
+                </>
+              )}
+
+              <ExternalLink className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+            </div>
           </CardAction>
           <div className="flex items-center space-x-3">
             {iconSrc && imageLoaded ? (
