@@ -238,10 +238,22 @@ docker compose logs -f nav
 `nav` 容器内 `entrypoint.sh` 会自动执行：
 1. 检查并执行 Prisma 迁移 / schema 同步
 2. 检查管理员是否存在
-3. 若未初始化则自动 seed
+3. 若未初始化则执行 `seed init`（仅创建管理员账号和系统设置）
 4. 最后启动 Next.js 服务
 
-这意味着**首次启动时间会比平时长**，属于正常现象。
+**首次启动后数据库是干净的**——没有预置分类和网站数据。所有分类和网站请通过后台管理界面创建。
+
+如需灌入演示数据（开发/测试用途），可手动执行：
+
+```bash
+# 基础演示数据（4 个分类 + 4 个网站）
+docker compose exec nav npx tsx prisma/seed.ts basic
+
+# 完整演示数据（10 个分类 + 50+ 网站）
+docker compose exec nav npx tsx prisma/seed.ts full
+```
+
+首次启动时间会比平时长，属于正常现象。
 
 ---
 

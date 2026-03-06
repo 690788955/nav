@@ -145,21 +145,6 @@ async function main() {
 
   const isInitialized = userCount > 0 || settingsExists > 0 || categoryCount > 0
 
-  if (isInitialized && mode === 'init') {
-    console.log('✅ 数据库已经初始化，跳过基础数据填充')
-    console.log(`   - 用户: ${userCount}`)
-    console.log(`   - 系统设置: ${settingsExists}`)
-    console.log(`   - 分类: ${categoryCount}\n`)
-
-    // 仅确保默认管理员存在
-    if (userCount === 0) {
-      console.log('⚠️  未检测到管理员用户，创建默认管理员...')
-      await createDefaultAdmin()
-    }
-
-    return
-  }
-
   // 1. 创建默认管理员用户
   if (userCount === 0) {
     await createDefaultAdmin()
@@ -190,11 +175,28 @@ async function main() {
     console.log('✅ 系统设置已存在，跳过\n')
   }
 
-  // 3. 根据模式选择数据
+  // 3. init 模式：只创建管理员和系统设置，不灌演示数据
+  if (mode === 'init') {
+    console.log('\n✅ 初始化完成（init 模式）')
+    console.log('   - 已创建管理员账号和系统设置')
+    console.log('   - 分类和网站请通过后台管理界面创建\n')
+    console.log('💡 提示：')
+    console.log('   - 管理员账号: admin@example.com')
+    console.log('   - 管理员密码: admin123')
+    console.log('   - 后台地址: /admin\n')
+    return
+  }
+
+  // 4. basic/full 模式：灌入演示数据
+  if (isInitialized && mode === 'basic') {
+    console.log('✅ 数据库已有数据，跳过演示数据填充\n')
+    return
+  }
+
   const categories = mode === 'full' ? fullCategories : basicCategories
   const sites = mode === 'full' ? fullSites : basicSites
 
-  // 4. 创建分类
+  // 5. 创建分类
   console.log(`📁 创建分类 (${mode === 'full' ? '完整模式' : '基础模式'})...`)
   const createdCategories = []
 

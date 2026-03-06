@@ -98,8 +98,8 @@ if node -e "
 "; then
   echo "✅ 跳过 seed"
 else
-  echo "🌱 执行 seed 脚本..."
-  npx tsx prisma/seed.ts
+  echo "🌱 执行 seed 脚本（init 模式：仅创建管理员和系统设置）..."
+  npx tsx prisma/seed.ts init
 fi
 
 echo "🚀 启动应用..."
