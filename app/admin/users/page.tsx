@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch"
 import { Loader2, Plus, Trash2 } from "lucide-react"
 import { getSystemSettings, updateSystemSettings } from "@/lib/actions"
 import { useToast } from "@/hooks/use-toast"
+import { adminPageCopy } from "@/lib/admin-copy"
 
 interface SystemSettingsData {
   id: string
@@ -31,17 +32,39 @@ interface SystemSettingsData {
   icpLink: string | undefined
 }
 
+function normalizeFooterLinks(value: unknown): Array<{ name: string; url: string }> {
+  if (Array.isArray(value)) {
+    return value
+      .filter((item): item is { name?: unknown; url?: unknown } => typeof item === "object" && item !== null)
+      .map((item) => ({
+        name: typeof item.name === "string" ? item.name : "",
+        url: typeof item.url === "string" ? item.url : "",
+      }))
+  }
+
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value)
+      return normalizeFooterLinks(parsed)
+    } catch {
+      return []
+    }
+  }
+
+  return []
+}
+
 export default function AdminSettingsPage() {
   const { toast } = useToast()
   const [settings, setSettings] = useState<SystemSettingsData>({
     id: "",
-    siteName: "Conan Nav",
+    siteName: "Everisk Nav",
     siteDescription: "简洁现代化的网址导航系统",
     siteLogo: undefined,
     favicon: undefined,
     pageSize: 20,
     showFooter: true,
-    footerCopyright: `© ${new Date().getFullYear()} Conan Nav. All rights reserved.`,
+    footerCopyright: `© ${new Date().getFullYear()} Everisk Nav. All rights reserved.`,
     footerLinks: [],
     showAdminLink: true,
     enableVisitTracking: true,
@@ -72,7 +95,7 @@ export default function AdminSettingsPage() {
         pageSize: result.data.pageSize ?? prev.pageSize,
         showFooter: result.data.showFooter ?? prev.showFooter,
         footerCopyright: result.data.footerCopyright ?? prev.footerCopyright,
-        footerLinks: (result.data.footerLinks as unknown as Array<{ name: string; url: string }>) || [],
+        footerLinks: normalizeFooterLinks(result.data.footerLinks),
         showAdminLink: result.data.showAdminLink ?? prev.showAdminLink,
         enableVisitTracking: result.data.enableVisitTracking ?? prev.enableVisitTracking,
         githubUrl: result.data.githubUrl || undefined,
@@ -114,21 +137,31 @@ export default function AdminSettingsPage() {
   }
 
   const addFooterLink = () => {
-    setSettings({
-      ...settings,
-      footerLinks: [...settings.footerLinks, { name: "", url: "" }],
-    })
+    setSettings((prev) => ({
+      ...prev,
+      footerLinks: [...normalizeFooterLinks(prev.footerLinks), { name: "", url: "" }],
+    }))
   }
 
   const removeFooterLink = (index: number) => {
-    const newLinks = settings.footerLinks.filter((_, i) => i !== index)
-    setSettings({ ...settings, footerLinks: newLinks })
+    setSettings((prev) => ({
+      ...prev,
+      footerLinks: normalizeFooterLinks(prev.footerLinks).filter((_, i) => i !== index),
+    }))
   }
 
   const updateFooterLink = (index: number, field: "name" | "url", value: string) => {
-    const newLinks = [...settings.footerLinks]
-    newLinks[index][field] = value
-    setSettings({ ...settings, footerLinks: newLinks })
+    setSettings((prev) => {
+      const newLinks = [...normalizeFooterLinks(prev.footerLinks)]
+      if (!newLinks[index]) {
+        return prev
+      }
+      newLinks[index] = {
+        ...newLinks[index],
+        [field]: value,
+      }
+      return { ...prev, footerLinks: newLinks }
+    })
   }
 
   return (
@@ -136,9 +169,9 @@ export default function AdminSettingsPage() {
       {/* 顶部说明和保存按钮 */}
       <div className="flex items-center justify-between gap-4">
         <div className="space-y-1">
-          <h3 className="text-lg font-semibold">打造你的专属导航 ✨</h3>
+          <h3 className="text-lg font-semibold">{adminPageCopy.users.title}</h3>
           <p className="text-sm text-muted-foreground">
-            定制网站信息、功能开关，开启你的个性化导航
+            {adminPageCopy.users.description}
           </p>
         </div>
         <Button onClick={handleSaveSettings} disabled={savingSettings} className="shrink-0">
@@ -403,7 +436,7 @@ export default function AdminSettingsPage() {
                   添加链接
                 </Button>
               </div>
-              {settings.footerLinks.map((link, index) => (
+              {normalizeFooterLinks(settings.footerLinks).map((link, index) => (
                 <div key={index} className="flex gap-2 items-start">
                   <Input
                     placeholder="链接名称"

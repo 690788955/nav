@@ -24,7 +24,6 @@ import {
 } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { createSite, updateSite, getAllCategories } from "@/lib/actions"
-import { getTags } from "@/lib/actions/tags"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2 } from "lucide-react"
 
@@ -36,18 +35,12 @@ interface Site {
   iconUrl: string | null
   categoryId: string
   isPublished: boolean
-  tags?: string | string[] | null
   platforms?: string | string[] | null
   screenshots?: string | string[] | null
   useCases?: string | null
 }
 
 interface Category {
-  id: string
-  name: string
-}
-
-interface Tag {
   id: string
   name: string
 }
@@ -67,7 +60,6 @@ export function SiteFormDialog({ open, onOpenChange, site, mode, onSuccess }: Si
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
-  const [tags, setTags] = useState<Tag[]>([])
   const [formData, setFormData] = useState({
     name: "",
     url: "",
@@ -75,7 +67,6 @@ export function SiteFormDialog({ open, onOpenChange, site, mode, onSuccess }: Si
     iconUrl: "",
     categoryId: "",
     isPublished: false,
-    tags: [] as string[],
     platforms: [] as string[],
     screenshots: [] as string[],
     useCases: "",
@@ -113,18 +104,6 @@ export function SiteFormDialog({ open, onOpenChange, site, mode, onSuccess }: Si
   }, [])
 
   useEffect(() => {
-    async function loadTags() {
-      const result = await getTags({ isApproved: true })
-      if (result.success && result.data) {
-        setTags(result.data)
-      }
-    }
-
-    loadTags()
-  }, [])
-
-  // 编辑模式：填充表单数据
-  useEffect(() => {
     if (mode === "edit" && site) {
       setFormData({
         name: site.name,
@@ -133,7 +112,6 @@ export function SiteFormDialog({ open, onOpenChange, site, mode, onSuccess }: Si
         iconUrl: site.iconUrl || "",
         categoryId: site.categoryId,
         isPublished: site.isPublished,
-        tags: parseJsonArray(site.tags),
         platforms: parseJsonArray(site.platforms),
         screenshots: parseJsonArray(site.screenshots),
         useCases: site.useCases || "",
@@ -146,7 +124,6 @@ export function SiteFormDialog({ open, onOpenChange, site, mode, onSuccess }: Si
         iconUrl: "",
         categoryId: "",
         isPublished: false,
-        tags: [],
         platforms: [],
         screenshots: [],
         useCases: "",
@@ -161,7 +138,6 @@ export function SiteFormDialog({ open, onOpenChange, site, mode, onSuccess }: Si
     try {
       const submitData = {
         ...formData,
-        tags: JSON.stringify(formData.tags),
         platforms: JSON.stringify(formData.platforms),
         screenshots: JSON.stringify(formData.screenshots),
       }
@@ -262,50 +238,6 @@ export function SiteFormDialog({ open, onOpenChange, site, mode, onSuccess }: Si
                 placeholder="简短描述这个网站..."
                 required
               />
-            </div>
-
-            <div className="grid gap-2">
-              <Label>标签</Label>
-              <Select
-                value=""
-                onValueChange={(value) => {
-                  if (!formData.tags.includes(value)) {
-                    setFormData({ ...formData, tags: [...formData.tags, value] })
-                  }
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="选择标签" />
-                </SelectTrigger>
-                <SelectContent>
-                  {tags.map((tag) => (
-                    <SelectItem key={tag.id} value={tag.name}>
-                      {tag.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {formData.tags.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {formData.tags.map((tag, index) => (
-                    <Badge key={`${tag}-${index}`} variant="secondary" className="gap-1">
-                      {tag}
-                      <button
-                        type="button"
-                        className="text-xs"
-                        onClick={() => {
-                          setFormData({
-                            ...formData,
-                            tags: formData.tags.filter((_, i) => i !== index),
-                          })
-                        }}
-                      >
-                        ×
-                      </button>
-                    </Badge>
-                  ))}
-                </div>
-              )}
             </div>
 
             <div className="grid gap-2">

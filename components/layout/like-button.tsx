@@ -16,6 +16,7 @@ export function LikeButton({ siteId, feedbackId, initialCount, type }: LikeButto
   const { toggleLike, isLiked, mounted } = useLikes()
   const [likesCount, setLikesCount] = useState(initialCount)
   const [loading, setLoading] = useState(false)
+  const [lastClickTime, setLastClickTime] = useState(0)
 
   const id = type === "site" ? siteId! : feedbackId!
 
@@ -23,10 +24,18 @@ export function LikeButton({ siteId, feedbackId, initialCount, type }: LikeButto
     e.stopPropagation()
     e.preventDefault()
 
+    // 防抖：1秒内禁止重复点击
+    const now = Date.now()
+    if (now - lastClickTime < 1000) return
+    setLastClickTime(now)
+
     if (loading) return
 
     const wasLiked = isLiked(id, type)
+    const delta = wasLiked ? -1 : 1
+
     toggleLike(id, type)
+    setLikesCount((prev) => Math.max(0, prev + delta))
 
     setLoading(true)
     try {
@@ -38,14 +47,21 @@ export function LikeButton({ siteId, feedbackId, initialCount, type }: LikeButto
         method: wasLiked ? 'DELETE' : 'POST',
       })
 
+      if (!response.ok) {
+        throw new Error("Failed to update like")
+      }
+
       const result = await response.json()
       if (result.success && result.likesCount !== undefined) {
-        setLikesCount(result.likesCount)
+        setLikesCount(Math.max(0, result.likesCount))
+      } else {
+        throw new Error(result.error || "Failed to update like")
       }
     } catch (error) {
       console.error('Failed to update like:', error)
       // Revert on error
       toggleLike(id, type)
+      setLikesCount((prev) => Math.max(0, prev - delta))
     } finally {
       setLoading(false)
     }

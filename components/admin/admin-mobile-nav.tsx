@@ -20,6 +20,7 @@ import {
   FolderKanban,
   Users,
   Database,
+  MessageSquare,
 } from "lucide-react"
 
 // 系统设置缓存类型
@@ -50,6 +51,11 @@ const navItems = [
     icon: FolderKanban,
   },
   {
+    title: "反馈管理",
+    href: "/admin/feedback",
+    icon: MessageSquare,
+  },
+  {
     title: "数据管理",
     href: "/admin/data",
     icon: Database,
@@ -69,7 +75,7 @@ interface AdminMobileNavProps {
 export function AdminMobileNav({ open, onOpenChange }: AdminMobileNavProps) {
   const pathname = usePathname()
   const router = useRouter()
-  const [siteName, setSiteName] = useState("Conan Nav")
+  const [siteName, setSiteName] = useState("Everisk Nav")
   const [siteLogo, setSiteLogo] = useState<string | null>(null)
 
   useEffect(() => {

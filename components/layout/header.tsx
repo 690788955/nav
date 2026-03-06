@@ -16,8 +16,9 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer"
 import { useMediaQuery } from "@/hooks/use-media-query"
-import { Search, X } from "lucide-react"
+import { Search, X, MessageSquare } from "lucide-react"
 import { logger } from "@/lib/logger"
+import { Button } from "@/components/ui/button"
 
 // 系统设置缓存类型
 interface SettingsCache {
@@ -46,7 +47,7 @@ interface HeaderProps {
 export function Header({
   categories,
   currentCategory = "",
-  siteName = "Conan Nav",
+  siteName = "Everisk Nav",
   siteLogo = null,
   searchQuery = "",
   onSearchChange
@@ -224,6 +225,13 @@ export function Header({
             {enableSubmission && (
               <SiteSubmissionDialog categories={categories} />
             )}
+
+            {/* 反馈中心链接 */}
+            <Button variant="ghost" size="icon" asChild>
+              <Link href="/feedback" aria-label="反馈中心">
+                <MessageSquare className="h-[1.2rem] w-[1.2rem]" />
+              </Link>
+            </Button>
 
             <FaviconServiceToggle />
             <PoetryToggle />

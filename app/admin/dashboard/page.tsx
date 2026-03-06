@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardAction } from "@/components/ui/card"
 import { useEffect, useState } from "react"
-import { Loader2, BarChart3, TrendingUp, Globe, FolderKanban, Users } from "lucide-react"
+import { Loader2, BarChart3, TrendingUp, Globe, FolderKanban, Users, Heart, Bookmark } from "lucide-react"
 import {
   Table,
   TableBody,
@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { adminPageCopy } from "@/lib/admin-copy"
 
 interface VisitStats {
   topSites: Array<{
@@ -33,6 +34,8 @@ interface VisitStats {
     description: string
     iconUrl: string | null
     visitCount: number
+    likesCount: number
+    favoritesCount: number
     category: {
       name: string
     }
@@ -55,6 +58,7 @@ interface SiteStats {
 
 type TimeRange = 0 | 7 | 30 | 90
 type TopCount = 5 | 10 | 30 | 0
+type RankMetric = "visits" | "likes" | "favorites"
 
 export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true)
@@ -62,6 +66,7 @@ export default function AdminDashboardPage() {
   const [frequencyData, setFrequencyData] = useState<FrequencyData | null>(null)
   const [timeRange, setTimeRange] = useState<TimeRange>(7)
   const [topCount, setTopCount] = useState<TopCount>(5)
+  const [rankMetric, setRankMetric] = useState<RankMetric>("visits")
   const [siteStats, setSiteStats] = useState<SiteStats[]>([
     { title: "网站总数", value: 0, loading: true },
     { title: "分类总数", value: 0, loading: true },
@@ -91,7 +96,7 @@ export default function AdminDashboardPage() {
           fetch("/api/admin/stats/sites"),
           fetch("/api/admin/stats/categories"),
           fetch("/api/admin/stats/users"),
-          fetch(`/api/admin/stats/visits?days=${timeRange}&limit=${topCount}`),
+            fetch(`/api/admin/stats/visits?days=${timeRange}&limit=${topCount}&metric=${rankMetric}`),
           fetch(`/api/admin/stats/frequency?days=${timeRange}`),
         ])
 
@@ -118,7 +123,7 @@ export default function AdminDashboardPage() {
     }
 
     loadStats()
-  }, [timeRange, topCount])
+  }, [timeRange, topCount, rankMetric])
 
   if (loading) {
     return (
@@ -130,6 +135,11 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="space-y-6 p-6">
+      <div className="space-y-1">
+        <h3 className="text-lg font-semibold">{adminPageCopy.dashboard.title}</h3>
+        <p className="text-sm text-muted-foreground">{adminPageCopy.dashboard.description}</p>
+      </div>
+
       {/* 统计卡片 */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {siteStats.map((stat) => (
@@ -161,10 +171,47 @@ export default function AdminDashboardPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <BarChart3 className="h-5 w-5" />
-            网站访问排行
+            {rankMetric === "visits"
+              ? "网站访问排行"
+              : rankMetric === "likes"
+                ? "网站点赞排行"
+                : "网站收藏排行"}
           </CardTitle>
-          <CardDescription>{getTimeRangeLabel(timeRange)}热门网站</CardDescription>
+          <CardDescription>
+            {rankMetric === "visits"
+              ? `${getTimeRangeLabel(timeRange)}热门网站`
+              : rankMetric === "likes"
+                ? "按累计点赞数排序"
+                : "按累计收藏数排序"}
+          </CardDescription>
           <CardAction>
+            <ToggleGroup
+              type="single"
+              value={rankMetric}
+              onValueChange={(value) => value && setRankMetric(value as RankMetric)}
+              variant="outline"
+              className="hidden md:flex"
+            >
+              <ToggleGroupItem value="visits" className="rounded-r-none">访问</ToggleGroupItem>
+              <ToggleGroupItem value="likes" className="rounded-none border-l-0">点赞</ToggleGroupItem>
+              <ToggleGroupItem value="favorites" className="rounded-l-none border-l-0">收藏</ToggleGroupItem>
+            </ToggleGroup>
+            <Select
+              value={rankMetric}
+              onValueChange={(value) => setRankMetric(value as RankMetric)}
+            >
+              <SelectTrigger
+                className="mr-2 flex w-24 md:hidden"
+                aria-label="选择排行维度"
+              >
+                <SelectValue placeholder="排行维度" />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl">
+                <SelectItem value="visits" className="rounded-lg">访问</SelectItem>
+                <SelectItem value="likes" className="rounded-lg">点赞</SelectItem>
+                <SelectItem value="favorites" className="rounded-lg">收藏</SelectItem>
+              </SelectContent>
+            </Select>
             <ToggleGroup
               type="single"
               value={topCount.toString()}
@@ -203,7 +250,13 @@ export default function AdminDashboardPage() {
                 <TableRow>
                   <TableHead className="w-12">排名</TableHead>
                   <TableHead>网站名称</TableHead>
-                  <TableHead className="text-right">访问次数</TableHead>
+                  <TableHead className="text-right">
+                    {rankMetric === "visits"
+                      ? "访问次数"
+                      : rankMetric === "likes"
+                        ? "点赞数"
+                        : "收藏数"}
+                  </TableHead>
                 </TableRow>
               </TableHeader>
             <TableBody>
@@ -236,7 +289,17 @@ export default function AdminDashboardPage() {
                     </div>
                   </TableCell>
                   <TableCell className="text-right">
-                    <span className="font-semibold">{site.visitCount.toLocaleString()}</span>
+                    <span className="inline-flex items-center gap-1 font-semibold">
+                      {rankMetric === "likes" && <Heart className="h-4 w-4 text-red-500" />}
+                      {rankMetric === "favorites" && <Bookmark className="h-4 w-4 text-amber-500" />}
+                      {(
+                        rankMetric === "visits"
+                          ? site.visitCount
+                          : rankMetric === "likes"
+                            ? site.likesCount
+                            : site.favoritesCount
+                      ).toLocaleString()}
+                    </span>
                   </TableCell>
                 </TableRow>
               ))}
@@ -244,7 +307,11 @@ export default function AdminDashboardPage() {
           </Table>
         ) : (
           <div className="text-center py-8 text-muted-foreground">
-            暂无访问数据
+            {rankMetric === "visits"
+              ? "暂无访问数据"
+              : rankMetric === "likes"
+                ? "暂无点赞数据"
+                : "暂无收藏数据"}
           </div>
         )}
       </CardContent>

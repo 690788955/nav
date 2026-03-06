@@ -2,8 +2,10 @@ import { getFeedbacks } from "@/lib/actions/feedback"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { MessageSquare } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { MessageSquare, ArrowLeft } from "lucide-react"
 import { LikeButton } from "@/components/layout/like-button"
+import Link from "next/link"
 
 export const revalidate = 10
 
@@ -19,13 +21,30 @@ const feedbackTypeColors: Record<string, "default" | "secondary" | "destructive"
   improvement: "secondary",
 }
 
+interface Feedback {
+  id: string
+  type: string
+  content: string
+  createdAt: Date
+  likesCount: number
+  tool?: {
+    name: string
+  }
+}
+
 export default async function FeedbackPage() {
   const result = await getFeedbacks({ page: 1, pageSize: 50, sortBy: 'time' })
-  const feedbacks = result.success ? result.data || [] : []
+  const feedbacks = (result.success ? result.data || [] : []) as Feedback[]
 
   return (
     <div className="container max-w-4xl py-8">
       <div className="mb-8">
+        <Button variant="ghost" size="sm" asChild className="mb-4">
+          <Link href="/">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            返回首页
+          </Link>
+        </Button>
         <h1 className="text-3xl font-bold tracking-tight flex items-center">
           <MessageSquare className="mr-2 h-8 w-8" />
           反馈中心
@@ -37,7 +56,7 @@ export default async function FeedbackPage() {
 
       {feedbacks.length > 0 ? (
         <div className="space-y-4">
-          {feedbacks.map((feedback: any) => (
+          {feedbacks.map((feedback) => (
             <Card key={feedback.id}>
               <CardHeader>
                 <div className="flex items-start justify-between">
@@ -75,6 +94,11 @@ export default async function FeedbackPage() {
               在工具详情页提交你的第一条反馈吧
             </CardDescription>
           </CardHeader>
+          <CardContent>
+            <Button asChild>
+              <Link href="/">浏览工具</Link>
+            </Button>
+          </CardContent>
         </Card>
       )}
     </div>

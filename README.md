@@ -1,9 +1,9 @@
-# Conan Nav
+# Everisk Nav
 
 一个简洁现代化的网址导航系统，基于 Next.js 15、Prisma 和 shadcn/ui 构建。
 
-[![GitHub stars](https://img.shields.io/github/stars/kenanlabs/nav?style=social)](https://github.com/kenanlabs/nav/stargazers)
-[![GitHub forks](https://img.shields.io/github/forks/kenanlabs/nav?style=social)](https://github.com/kenanlabs/nav/network/members)
+[![GitHub stars](https://img.shields.io/github/stars/kenanlabs/nav?style=social)](https://github.com/690788955/nav/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/kenanlabs/nav?style=social)](https://github.com/690788955/nav/network/members)
 [![Next.js](https://img.shields.io/badge/Next.js-15-black)](https://nextjs.org/)
 [![React](https://img.shields.io/badge/React-19-blue)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)](https://www.typescriptlang.org/)
@@ -120,7 +120,7 @@ npm run dev
 
 ```bash
 # 1. 克隆代码
-git clone https://github.com/kenanlabs/nav.git
+git clone https://github.com/690788955/nav.git
 cd nav
 
 # 2. 配置环境变量
@@ -194,7 +194,7 @@ git push origin v1.0.0
 
 ```bash
 # 1. 克隆代码
-git clone https://github.com/kenanlabs/nav.git
+git clone https://github.com/690788955/nav.git
 cd nav
 
 # 2. 安装依赖
@@ -327,7 +327,7 @@ npm run db:push
 
 ### 系统管理页面为什么没有用户管理？
 
-Conan Nav 采用**单管理员架构**，管理员信息的编辑已集成到侧边栏的头像组件中，设计更加简洁直观。
+Everisk Nav 采用**单管理员架构**，管理员信息的编辑已集成到侧边栏的头像组件中，设计更加简洁直观。
 
 ### 如何备份数据库？
 

@@ -1,13 +1,14 @@
 "use client"
 
-import { useState, useMemo, useEffect, useRef, type MouseEvent } from "react"
+import { useState, useMemo, useEffect, useRef } from "react"
 import Link from "next/link"
 import { Card, CardHeader, CardTitle, CardDescription, CardAction } from "@/components/ui/card"
-import { ExternalLink, Heart, ThumbsUp } from "lucide-react"
+import { ExternalLink, Heart, ThumbsUp, MessageSquare, Loader2 } from "lucide-react"
 import { useFaviconService, getFaviconUrl } from "@/hooks/use-favicon-service"
 import { useFavorites } from "@/hooks/use-favorites"
 import { useLikes } from "@/hooks/use-likes"
 import { Button } from "@/components/ui/button"
+import { FeedbackDialog } from "@/components/layout/feedback-dialog"
 
 // 生成首字母图标（shadcn/ui 简洁风格）
 function getInitialIcon(name: string) {
@@ -48,6 +49,8 @@ interface SiteCardProps {
 export function SiteCard({ site }: SiteCardProps) {
   const [imageLoaded, setImageLoaded] = useState(false)
   const [likesCount, setLikesCount] = useState(site.likesCount ?? 0)
+  const [likeLoading, setLikeLoading] = useState(false)
+  const [lastLikeTime, setLastLikeTime] = useState(0)
   const hasTriedLoad = useRef(false)
   const { service } = useFaviconService()
   const { toggleFavorite, isFavorite, mounted: favMounted } = useFavorites()
@@ -98,7 +101,15 @@ export function SiteCard({ site }: SiteCardProps) {
     img.src = iconSrc
   }, [iconSrc])
 
-  const handleClick = () => {
+  const handleCardClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    const target = event.target as HTMLElement
+
+    // 卡片内操作按钮（收藏/点赞/反馈）不应触发外链跳转
+    if (target.closest('[data-card-action="true"]')) {
+      event.preventDefault()
+      return
+    }
+
     // 使用 sendBeacon 异步记录访问，不阻塞页面跳转
     if (navigator.sendBeacon) {
       const data = JSON.stringify({ siteId: site.id })
@@ -115,18 +126,41 @@ export function SiteCard({ site }: SiteCardProps) {
   const handleLike = async (e: React.MouseEvent) => {
     e.stopPropagation()
     e.preventDefault()
+
+    // 防抖：1秒内禁止重复点击
+    const now = Date.now()
+    if (now - lastLikeTime < 1000) return
+    setLastLikeTime(now)
+
+    if (likeLoading) return
+
     const wasLiked = isLiked(site.id, 'site')
+    const delta = wasLiked ? -1 : 1
+
     toggleLike(site.id, 'site')
+    setLikesCount((prev) => Math.max(0, prev + delta))
+    setLikeLoading(true)
+
     try {
       const response = await fetch(`/api/likes/site/${site.id}`, {
         method: wasLiked ? 'DELETE' : 'POST',
       })
+
+      if (!response.ok) {
+        throw new Error("Failed to update like status")
+      }
+
       const result = await response.json()
       if (result.success && result.likesCount !== undefined) {
-        setLikesCount(result.likesCount)
+        setLikesCount(Math.max(0, result.likesCount))
+      } else {
+        throw new Error(result.error || "Failed to update like status")
       }
-    } catch (error) {
+    } catch {
       toggleLike(site.id, 'site')
+      setLikesCount((prev) => Math.max(0, prev - delta))
+    } finally {
+      setLikeLoading(false)
     }
   }
 
@@ -135,7 +169,7 @@ export function SiteCard({ site }: SiteCardProps) {
       href={site.url}
       target="_blank"
       rel="noopener noreferrer"
-      onClick={handleClick}
+      onClick={handleCardClick}
         aria-label={`访问 ${site.name}`}
         className="group block"
     >
@@ -148,6 +182,7 @@ export function SiteCard({ site }: SiteCardProps) {
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8"
+                  data-card-action="true"
                   onClick={handleFavorite}
                 >
                   <Heart className={`h-4 w-4 ${isFavorite(site.id) ? 'fill-red-500 text-red-500' : ''}`} />
@@ -158,11 +193,27 @@ export function SiteCard({ site }: SiteCardProps) {
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8"
+                  data-card-action="true"
                   onClick={handleLike}
+                  disabled={likeLoading}
                 >
-                  <ThumbsUp className={`h-4 w-4 ${isLiked(site.id, 'site') ? 'fill-blue-500 text-blue-500' : ''}`} />
+                  {likeLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <ThumbsUp className={`h-4 w-4 ${isLiked(site.id, 'site') ? 'fill-blue-500 text-blue-500' : ''}`} />
+                  )}
                 </Button>
               )}
+              <FeedbackDialog toolId={site.id} toolName={site.name}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  data-card-action="true"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                </Button>
+              </FeedbackDialog>
               <ExternalLink className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
           </CardAction>

@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle, CardAction } from "@/components/ui/card"
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Table,
   TableBody,
@@ -22,24 +22,16 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import {
-  Pagination,
-  PaginationContent,
-  PaginationEllipsis,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination"
-import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { Plus, Pencil, Trash2, Loader2 } from "lucide-react"
 import { CategoryFormDialog } from "@/components/admin/category-form-dialog"
-import { getCategoriesWithPagination, deleteCategory } from "@/lib/actions"
 import { useToast } from "@/hooks/use-toast"
+import { adminPageCopy } from "@/lib/admin-copy"
+import { deleteCategory, getAllCategoriesWithCount, reorderCategories } from "@/lib/actions"
+import { GripVertical, Loader2, Pencil, Plus, Trash2 } from "lucide-react"
 
 interface Category {
   id: string
@@ -51,36 +43,46 @@ interface Category {
   }
 }
 
-interface PaginationInfo {
-  page: number
-  pageSize: number
-  total: number
-  totalPages: number
+function moveCategory(items: Category[], fromId: string, toId: string): Category[] {
+  const fromIndex = items.findIndex((item) => item.id === fromId)
+  const toIndex = items.findIndex((item) => item.id === toId)
+
+  if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) {
+    return items
+  }
+
+  const next = [...items]
+  const [moved] = next.splice(fromIndex, 1)
+  next.splice(toIndex, 0, moved)
+
+  return next.map((item, index) => ({
+    ...item,
+    order: index + 1,
+  }))
 }
 
 export default function AdminCategoriesPage() {
   const { toast } = useToast()
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
+  const [savingOrder, setSavingOrder] = useState(false)
+
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null)
   const [dialogMode, setDialogMode] = useState<"create" | "edit">("create")
+
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deletingCategoryId, setDeletingCategoryId] = useState<string | null>(null)
 
-  // 分页状态
-  const [page, setPage] = useState(1)
-  const [pagination, setPagination] = useState<PaginationInfo | null>(null)
+  const [draggingCategoryId, setDraggingCategoryId] = useState<string | null>(null)
+  const [dragOverCategoryId, setDragOverCategoryId] = useState<string | null>(null)
 
-  // 加载分类列表
-  const loadCategories = async (currentPage = page) => {
+  const loadCategories = useCallback(async () => {
     setLoading(true)
     try {
-      const result = await getCategoriesWithPagination({ page: currentPage, pageSize: 10 })
+      const result = await getAllCategoriesWithCount()
       if (result.success && result.data) {
         setCategories(result.data)
-        setPagination(result.pagination || null)
-        setPage(result.pagination?.page || 1)
       } else {
         toast({
           variant: "destructive",
@@ -97,39 +99,29 @@ export default function AdminCategoriesPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [toast])
 
   useEffect(() => {
-    loadCategories(1)
-  }, [])
+    loadCategories()
+  }, [loadCategories])
 
-  // 打开创建对话框
   const handleCreate = () => {
     setDialogMode("create")
     setEditingCategoryId(null)
     setDialogOpen(true)
   }
 
-  // 打开编辑对话框
   const handleEdit = (categoryId: string) => {
     setDialogMode("edit")
     setEditingCategoryId(categoryId)
     setDialogOpen(true)
   }
 
-  // 页面切换处理
-  const handlePageChange = (newPage: number) => {
-    if (newPage < 1 || (pagination && newPage > pagination.totalPages)) return
-    loadCategories(newPage)
-  }
-
-  // 打开删除确认对话框
   const handleDeleteClick = (categoryId: string) => {
     setDeletingCategoryId(categoryId)
     setDeleteDialogOpen(true)
   }
 
-  // 确认删除
   const handleDeleteConfirm = async () => {
     if (!deletingCategoryId) return
 
@@ -160,14 +152,75 @@ export default function AdminCategoriesPage() {
     }
   }
 
+  const handleDragStart = (categoryId: string) => {
+    setDraggingCategoryId(categoryId)
+  }
+
+  const handleDragEnd = () => {
+    setDraggingCategoryId(null)
+    setDragOverCategoryId(null)
+  }
+
+  const handleDrop = async (targetCategoryId: string) => {
+    if (!draggingCategoryId || draggingCategoryId === targetCategoryId || savingOrder) {
+      return
+    }
+
+    const previous = [...categories]
+    const next = moveCategory(categories, draggingCategoryId, targetCategoryId)
+
+    if (next === categories) {
+      handleDragEnd()
+      return
+    }
+
+    setCategories(next)
+    setSavingOrder(true)
+    handleDragEnd()
+
+    try {
+      const result = await reorderCategories(next.map((item) => item.id))
+      if (!result.success) {
+        setCategories(previous)
+        toast({
+          variant: "destructive",
+          title: "排序失败",
+          description: result.error || "分类排序保存失败，请稍后重试",
+        })
+        return
+      }
+
+      toast({
+        title: "排序已更新",
+        description: "分类优先级已按拖拽顺序保存",
+      })
+      loadCategories()
+    } catch (error) {
+      setCategories(previous)
+      toast({
+        variant: "destructive",
+        title: "排序失败",
+        description: "发生错误，请稍后重试",
+      })
+    } finally {
+      setSavingOrder(false)
+    }
+  }
+
   return (
     <div className="space-y-6 p-6">
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>分类，让导航井井有条</CardTitle>
+          <div className="flex items-center justify-between gap-4">
+            <div className="space-y-1">
+              <CardTitle>{adminPageCopy.categories.title}</CardTitle>
+              <CardDescription>{adminPageCopy.categories.description}</CardDescription>
+              <p className="text-xs text-muted-foreground">
+                可直接拖拽左侧图标调整优先级，数字越小排序越靠前
+              </p>
+            </div>
             <CardAction>
-              <Button onClick={handleCreate}>
+              <Button onClick={handleCreate} disabled={savingOrder}>
                 <Plus className="mr-2 h-4 w-4" />
                 新增分类
               </Button>
@@ -180,13 +233,14 @@ export default function AdminCategoriesPage() {
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           ) : categories.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
+            <div className="py-8 text-center text-muted-foreground">
               暂无分类，点击「新增分类」添加第一个分类
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-[56px]">拖拽</TableHead>
                   <TableHead>名称</TableHead>
                   <TableHead>标识</TableHead>
                   <TableHead>排序</TableHead>
@@ -195,112 +249,97 @@ export default function AdminCategoriesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {categories.map((category) => (
-                  <TableRow key={category.id}>
-                    <TableCell className="font-medium">{category.name}</TableCell>
-                    <TableCell className="text-muted-foreground">{category.slug}</TableCell>
-                    <TableCell>{category.order}</TableCell>
-                    <TableCell>{category._count?.sites || 0}</TableCell>
-                    <TableCell className="text-right">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleEdit(category.id)}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>编辑分类</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDeleteClick(category.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>删除分类</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {categories.map((category) => {
+                  const isDragging = draggingCategoryId === category.id
+                  const isDragOver = dragOverCategoryId === category.id && draggingCategoryId !== category.id
+
+                  return (
+                    <TableRow
+                      key={category.id}
+                      draggable={!savingOrder}
+                      onDragStart={() => handleDragStart(category.id)}
+                      onDragEnd={handleDragEnd}
+                      onDragOver={(event) => {
+                        event.preventDefault()
+                        if (dragOverCategoryId !== category.id) {
+                          setDragOverCategoryId(category.id)
+                        }
+                      }}
+                      onDrop={(event) => {
+                        event.preventDefault()
+                        handleDrop(category.id)
+                      }}
+                      className={[
+                        "transition-colors",
+                        isDragging ? "opacity-40" : "",
+                        isDragOver ? "bg-muted/60" : "",
+                      ].join(" ")}
+                    >
+                      <TableCell>
+                        <button
+                          type="button"
+                          className="cursor-grab text-muted-foreground active:cursor-grabbing"
+                          aria-label="拖拽调整排序"
+                          disabled={savingOrder}
+                        >
+                          <GripVertical className="h-4 w-4" />
+                        </button>
+                      </TableCell>
+                      <TableCell className="font-medium">{category.name}</TableCell>
+                      <TableCell className="text-muted-foreground">{category.slug}</TableCell>
+                      <TableCell>{category.order}</TableCell>
+                      <TableCell>{category._count?.sites || 0}</TableCell>
+                      <TableCell className="text-right">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleEdit(category.id)}
+                                disabled={savingOrder}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>编辑分类</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDeleteClick(category.id)}
+                                disabled={savingOrder}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>删除分类</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
               </TableBody>
             </Table>
           )}
+
+          {savingOrder && (
+            <div className="mt-4 flex items-center text-sm text-muted-foreground">
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              正在保存排序...
+            </div>
+          )}
         </CardContent>
       </Card>
-
-      {/* 分页组件 */}
-      {pagination && pagination.totalPages > 1 && (
-        <Pagination>
-          <PaginationContent>
-            <PaginationItem>
-              <PaginationPrevious
-                onClick={() => handlePageChange(page - 1)}
-                className={
-                  page === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"
-                }
-              />
-            </PaginationItem>
-
-            {/* 页码 */}
-            {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
-              .filter(
-                (pageNum) =>
-                  pageNum === 1 ||
-                  pageNum === pagination.totalPages ||
-                  (pageNum >= page - 1 && pageNum <= page + 1)
-              )
-              .map((pageNum, idx, arr) => {
-                const prevPage = arr[idx - 1]
-                const showEllipsis = prevPage && pageNum - prevPage > 1
-
-                return (
-                  <div key={pageNum} className="flex items-center">
-                    {showEllipsis && (
-                      <PaginationItem>
-                        <PaginationEllipsis />
-                      </PaginationItem>
-                    )}
-                    <PaginationItem>
-                      <PaginationLink
-                        onClick={() => handlePageChange(pageNum)}
-                        isActive={pageNum === page}
-                        className="cursor-pointer"
-                      >
-                        {pageNum}
-                      </PaginationLink>
-                    </PaginationItem>
-                  </div>
-                )
-              })}
-
-            <PaginationItem>
-              <PaginationNext
-                onClick={() => handlePageChange(page + 1)}
-                className={
-                  page === pagination.totalPages
-                    ? "pointer-events-none opacity-50"
-                    : "cursor-pointer"
-                }
-              />
-            </PaginationItem>
-          </PaginationContent>
-        </Pagination>
-      )}
 
       <CategoryFormDialog
         open={dialogOpen}

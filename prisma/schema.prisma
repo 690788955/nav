@@ -32,7 +32,6 @@ model Site {
   category         Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   isPublished      Boolean   @default(false)
   order            Int       @default(0)
-  tags             String    @default("[]")
   platforms        String    @default("[]")
   screenshots      String    @default("[]")
   useCases         String?
@@ -41,12 +40,28 @@ model Site {
   updatedAt        DateTime  @updatedAt
   visits           Visit[]
   feedbacks        Feedback[]
+  favorites        Favorite[]
 
   @@index([categoryId])
   @@index([isPublished])
   @@index([categoryId, isPublished])
   @@index([order])
+  @@index([likesCount])
   @@map("Site")
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  siteId     String
+  site       Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  userKey    String   @map("user_key")
+  createdAt DateTime @default(now())
+
+  @@unique([siteId, userKey])
+  @@index([siteId])
+  @@index([userKey])
+  @@index([createdAt])
+  @@map("Favorite")
 }
 
 model User {
@@ -63,7 +78,7 @@ model User {
 
 model SystemSettings {
   id               String   @id @default("default") @map("id")
-  siteName         String   @default("Conan Nav") @map("site_name")
+  siteName         String   @default("Everisk Nav") @map("site_name")
   siteDescription  String   @default("简洁现代化的网址导航系统") @map("site_description")
   siteLogo         String?  @map("site_logo")
   favicon          String?  @map("favicon")
@@ -122,15 +137,3 @@ model Feedback {
   @@index([toolId, isDeleted])
 }
 
-model Tag {
-  id         String   @id @default(cuid())
-  name       String   @unique
-  slug       String   @unique
-  isOfficial Boolean  @default(false)
-  isApproved Boolean  @default(false)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  @@index([isOfficial])
-  @@index([isApproved])
-}

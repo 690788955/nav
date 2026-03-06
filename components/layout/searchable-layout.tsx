@@ -5,7 +5,6 @@ import { ScrollHeader } from "./scroll-header"
 import { Footer } from "./footer"
 import { SiteCard } from "./site-card"
 import { JinrishiciCardWrapper } from "./jinrishici-card-wrapper"
-import { Badge } from "@/components/ui/badge"
 
 interface Site {
   id: string
@@ -74,9 +73,9 @@ export function SearchableLayout({
               <>
                 <div className="mb-8 flex items-center gap-3">
                   <h1 className="text-3xl font-bold tracking-tight">搜索结果</h1>
-                  <Badge variant="secondary" className="text-sm">
-                    {filteredSites.length}
-                  </Badge>
+                  <span className="text-sm text-muted-foreground">
+                    {filteredSites.length} 个结果
+                  </span>
                   <p className="text-muted-foreground">
                     关键词：<span className="font-semibold text-foreground">「{searchQuery}」</span>
                   </p>
@@ -92,7 +91,10 @@ export function SearchableLayout({
                 ) : (
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                     {filteredSites.map((site) => (
-                      <SiteCard key={site.id} site={site} />
+                      <SiteCard
+                        key={site.id}
+                        site={site}
+                      />
                     ))}
                   </div>
                 )}

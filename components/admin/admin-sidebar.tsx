@@ -19,7 +19,6 @@ import {
   Users,
   Database,
   MessageSquare,
-  Tag,
 } from "lucide-react"
 
 // 系统设置缓存类型
@@ -55,12 +54,7 @@ const navItems = [
   {
     title: "反馈管理",
     href: "/admin/feedback",
-    icon: Users,
-  },
-  {
-    title: "标签管理",
-    href: "/admin/tags",
-    icon: Database,
+    icon: MessageSquare,
   },
   {
     title: "数据管理",
@@ -81,7 +75,7 @@ interface SidebarProps {
 export function AdminSidebar({ className }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
-  const [siteName, setSiteName] = useState("Conan Nav")
+  const [siteName, setSiteName] = useState("Everisk Nav")
   const [siteLogo, setSiteLogo] = useState<string | null>(null)
   const [collapsed, setCollapsed] = useState(false)
 

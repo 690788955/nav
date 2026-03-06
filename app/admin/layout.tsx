@@ -6,7 +6,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const settings = result.success && result.data ? result.data : null
 
   return {
-    title: `${settings?.siteName || "Conan Nav"} - 管理后台`,
+    title: `${settings?.siteName || "Everisk Nav"} - 管理后台`,
     description: settings?.siteDescription || "简洁现代化的网址导航系统",
     icons: {
       icon: settings?.favicon || "/favicon.ico",

@@ -33,7 +33,7 @@ export default function AdminLoginPage() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
-  const [siteName, setSiteName] = useState("Conan Nav")
+  const [siteName, setSiteName] = useState("Everisk Nav")
   const [siteDescription, setSiteDescription] = useState("简洁现代化的网址导航系统")
   const [githubUrl, setGithubUrl] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)

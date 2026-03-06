@@ -11,12 +11,18 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { FileDown, FileUp, Database, ChevronDown } from "lucide-react"
+import { adminPageCopy } from "@/lib/admin-copy"
 
 export default function DataManagementPage() {
   const [importDialogOpen, setImportDialogOpen] = useState(false)
 
   return (
     <div className="space-y-6 p-6">
+      <div className="space-y-1">
+        <h3 className="text-lg font-semibold">{adminPageCopy.data.title}</h3>
+        <p className="text-sm text-muted-foreground">{adminPageCopy.data.description}</p>
+      </div>
+
       <div className="grid gap-6 md:grid-cols-2">
         {/* 导入数据 - 主要操作 */}
         <Card className="border-primary/20 bg-primary/5">

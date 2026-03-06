@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import {
   Table,
   TableBody,
@@ -49,6 +49,7 @@ import { Plus, Pencil, Trash2, Power, Loader2, RotateCcw } from "lucide-react"
 import { SiteFormDialog } from "@/components/admin/site-form-dialog"
 import { getSitesWithPagination, deleteSite, toggleSitePublish, getCategoriesForFilter } from "@/lib/actions"
 import { useToast } from "@/hooks/use-toast"
+import { adminPageCopy } from "@/lib/admin-copy"
 
 interface Site {
   id: string
@@ -326,7 +327,8 @@ title: "加载失败",
       {/* 网站列表卡片 */}
       <Card>
         <CardHeader>
-          <CardTitle>收录你的宝藏网站</CardTitle>
+          <CardTitle>{adminPageCopy.sites.title}</CardTitle>
+          <CardDescription>{adminPageCopy.sites.description}</CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (

@@ -18,6 +18,8 @@ export function ToolActions({ site }: ToolActionsProps) {
   const { toggleFavorite, isFavorite, mounted: favoritesMounted } = useFavorites()
   const { toggleLike, isLiked, mounted: likesMounted } = useLikes()
   const [likesCount, setLikesCount] = useState(site.likesCount ?? 0)
+  const [likeLoading, setLikeLoading] = useState(false)
+  const [lastLikeTime, setLastLikeTime] = useState(0)
 
   const mounted = favoritesMounted && likesMounted
   const favoriteActive = mounted && isFavorite(site.id)
@@ -28,9 +30,19 @@ export function ToolActions({ site }: ToolActionsProps) {
   }
 
   const handleLikeClick = async () => {
+    // 防抖：1秒内禁止重复点击
+    const now = Date.now()
+    if (now - lastLikeTime < 1000) return
+    setLastLikeTime(now)
+
+    if (likeLoading) return
+
     const currentlyLiked = isLiked(site.id, "site")
+    const delta = currentlyLiked ? -1 : 1
+
     toggleLike(site.id, "site")
-    setLikesCount((prev) => Math.max(0, prev + (currentlyLiked ? -1 : 1)))
+    setLikesCount((prev) => Math.max(0, prev + delta))
+    setLikeLoading(true)
 
     try {
       const response = await fetch(`/api/likes/site/${site.id}`, {
@@ -42,12 +54,16 @@ export function ToolActions({ site }: ToolActionsProps) {
       }
 
       const payload = await response.json()
-      if (typeof payload?.data?.likesCount === "number") {
-        setLikesCount(Math.max(0, payload.data.likesCount))
+      if (typeof payload?.likesCount === "number") {
+        setLikesCount(Math.max(0, payload.likesCount))
+      } else {
+        throw new Error("Invalid likesCount payload")
       }
     } catch {
       toggleLike(site.id, "site")
-      setLikesCount((prev) => Math.max(0, prev + (currentlyLiked ? 1 : -1)))
+      setLikesCount((prev) => Math.max(0, prev - delta))
+    } finally {
+      setLikeLoading(false)
     }
   }
 
@@ -72,6 +88,7 @@ export function ToolActions({ site }: ToolActionsProps) {
         size="sm"
         onClick={handleLikeClick}
         className="gap-2"
+        disabled={likeLoading}
       >
         <ThumbsUp className={`h-4 w-4 ${likedActive ? "fill-blue-500 text-blue-500" : ""}`} />
         {likesCount}

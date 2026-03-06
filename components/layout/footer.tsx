@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Link from "next/link"
 import { Separator } from "@/components/ui/separator"
 import { logger } from "@/lib/logger"
 
@@ -23,7 +24,7 @@ const CACHE_DURATION = 5 * 60 * 1000 // 5分钟缓存
 // 获取动态版权信息
 function getDefaultCopyright(): string {
   const year = new Date().getFullYear()
-  return `© ${year} Conan Nav. All rights reserved.`
+  return `© ${year} Everisk Nav. All rights reserved.`
 }
 
 export function Footer() {
@@ -152,14 +153,24 @@ export function Footer() {
                 <Separator orientation="vertical" className="h-4" />
               </>
             )}
+            {/* 反馈中心链接 */}
+            <Link
+              href="/feedback"
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
+              反馈中心
+            </Link>
             {/* 管理后台链接 - 根据设置显示或隐藏 */}
             {settings?.showAdminLink && (
-              <a
-                href="/admin"
-                className="text-sm text-muted-foreground hover:text-foreground"
-              >
-                管理后台
-              </a>
+              <>
+                <Separator orientation="vertical" className="h-4" />
+                <a
+                  href="/admin"
+                  className="text-sm text-muted-foreground hover:text-foreground"
+                >
+                  管理后台
+                </a>
+              </>
             )}
           </div>
         </div>

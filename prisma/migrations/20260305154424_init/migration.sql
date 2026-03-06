@@ -45,7 +45,7 @@ CREATE TABLE "User" (
 -- CreateTable
 CREATE TABLE "SystemSettings" (
     "id" TEXT NOT NULL PRIMARY KEY DEFAULT 'default',
-    "site_name" TEXT NOT NULL DEFAULT 'Conan Nav',
+    "site_name" TEXT NOT NULL DEFAULT 'Everisk Nav',
     "site_description" TEXT NOT NULL DEFAULT '简洁现代化的网址导航系统',
     "site_logo" TEXT,
     "favicon" TEXT,

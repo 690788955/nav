@@ -4,9 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { ExternalLink, Heart, ThumbsUp, Monitor, Smartphone, Globe } from "lucide-react"
-import { FavoriteButton } from "@/components/layout/favorite-button"
-import { LikeButton } from "@/components/layout/like-button"
+import { ExternalLink, Monitor, Smartphone, Globe } from "lucide-react"
+import { ToolActions } from "@/components/layout/tool-actions"
 
 export default async function ToolDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -17,7 +16,6 @@ export default async function ToolDetailPage({ params }: { params: Promise<{ id:
   }
 
   const site = result.data
-  const tags = JSON.parse(site.tags || '[]') as string[]
   const platforms = JSON.parse(site.platforms || '[]') as string[]
   const screenshots = JSON.parse(site.screenshots || '[]') as string[]
 
@@ -54,23 +52,8 @@ export default async function ToolDetailPage({ params }: { params: Promise<{ id:
                     访问网站
                   </a>
                 </Button>
-                <FavoriteButton siteId={site.id} />
-                <LikeButton siteId={site.id} initialCount={site.likesCount || 0} type="site" />
+                <ToolActions siteId={site.id} siteName={site.name} likesCount={site.likesCount || 0} />
               </div>
-
-              {tags.length > 0 && (
-                <>
-                  <Separator />
-                  <div>
-                    <h3 className="text-sm font-medium mb-2">标签</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {tags.map((tag) => (
-                        <Badge key={tag} variant="secondary">{tag}</Badge>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
 
               {platforms.length > 0 && (
                 <>

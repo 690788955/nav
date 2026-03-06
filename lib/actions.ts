@@ -58,6 +58,24 @@ export async function getAllCategories() {
   }
 }
 
+export async function getAllCategoriesWithCount() {
+  try {
+    const categories = await prisma.category.findMany({
+      orderBy: { order: 'asc' },
+      include: {
+        _count: {
+          select: { sites: true },
+        },
+      },
+    })
+
+    return { success: true, data: categories }
+  } catch (error) {
+    console.error("Error fetching all categories with count:", error)
+    return { success: false, error: "Failed to fetch categories" }
+  }
+}
+
 export async function getCategoriesWithPagination(params: {
   page?: number
   pageSize?: number
@@ -165,6 +183,58 @@ export async function updateCategory(id: string, data: {
   }
 }
 
+export async function reorderCategories(categoryIds: string[]) {
+  try {
+    if (!Array.isArray(categoryIds) || categoryIds.length === 0) {
+      return { success: false, error: "Invalid category order" }
+    }
+
+    const uniqueCategoryIds = Array.from(new Set(categoryIds))
+    if (uniqueCategoryIds.length !== categoryIds.length) {
+      return { success: false, error: "Invalid category order" }
+    }
+
+    const categories = await prisma.category.findMany({
+      select: {
+        id: true,
+        slug: true,
+      },
+    })
+
+    if (categories.length !== uniqueCategoryIds.length) {
+      return { success: false, error: "分类数量不匹配，请刷新后重试" }
+    }
+
+    const existingCategoryIds = new Set(categories.map((category) => category.id))
+    const hasUnknownCategory = uniqueCategoryIds.some((id) => !existingCategoryIds.has(id))
+    if (hasUnknownCategory) {
+      return { success: false, error: "分类数据已变更，请刷新后重试" }
+    }
+
+    await prisma.$transaction(
+      uniqueCategoryIds.map((id, index) =>
+        prisma.category.update({
+          where: { id },
+          data: { order: index + 1 },
+        })
+      )
+    )
+
+    revalidatePath("/admin/categories")
+    revalidatePath("/")
+    revalidatePath("/search")
+
+    categories.forEach((category) => {
+      revalidatePath(`/category/${category.slug}`)
+    })
+
+    return { success: true }
+  } catch (error) {
+    console.error("Error reordering categories:", error)
+    return { success: false, error: "Failed to reorder categories" }
+  }
+}
+
 export async function deleteCategory(id: string) {
   try {
     await prisma.category.delete({
@@ -192,7 +262,6 @@ export async function getSites() {
     
     const parsedSites = sites.map(site => ({
       ...site,
-      tags: site.tags ? JSON.parse(site.tags) : [],
       platforms: site.platforms ? JSON.parse(site.platforms) : [],
       screenshots: site.screenshots ? JSON.parse(site.screenshots) : [],
     }))
@@ -256,7 +325,6 @@ export async function getSitesWithPagination(params: {
 
     const parsedSites = sites.map(site => ({
       ...site,
-      tags: site.tags ? JSON.parse(site.tags) : [],
       platforms: site.platforms ? JSON.parse(site.platforms) : [],
       screenshots: site.screenshots ? JSON.parse(site.screenshots) : [],
     }))
@@ -308,7 +376,6 @@ export async function getSiteById(id: string) {
     
     const parsedSite = {
       ...site,
-      tags: site.tags ? JSON.parse(site.tags) : [],
       platforms: site.platforms ? JSON.parse(site.platforms) : [],
       screenshots: site.screenshots ? JSON.parse(site.screenshots) : [],
     }
@@ -330,7 +397,6 @@ export async function createSite(data: {
   categoryId: string
   isPublished?: boolean
   order?: number
-  tags?: string[]
   platforms?: string[]
   screenshots?: string[]
   useCases?: string
@@ -347,7 +413,6 @@ export async function createSite(data: {
         categoryId: data.categoryId,
         isPublished: data.isPublished ?? false,
         order: data.order ?? 0,
-        tags: data.tags ? JSON.stringify(data.tags) : '[]',
         platforms: data.platforms ? JSON.stringify(data.platforms) : '[]',
         screenshots: data.screenshots ? JSON.stringify(data.screenshots) : '[]',
         useCases: data.useCases || null,
@@ -359,7 +424,6 @@ export async function createSite(data: {
     
     const parsedSite = {
       ...site,
-      tags: JSON.parse(site.tags || "[]"),
       platforms: JSON.parse(site.platforms || "[]"),
       screenshots: JSON.parse(site.screenshots || "[]"),
     }
@@ -384,16 +448,14 @@ export async function updateSite(id: string, data: {
   categoryId?: string
   isPublished?: boolean
   order?: number
-  tags?: string[]
   platforms?: string[]
   screenshots?: string[]
   useCases?: string
 }) {
   try {
-    const { tags, platforms, screenshots, ...restData } = data
+    const { platforms, screenshots, ...restData } = data
     const updateData: any = {
       ...restData,
-      ...(tags !== undefined && { tags: JSON.stringify(tags) }),
       ...(platforms !== undefined && { platforms: JSON.stringify(platforms) }),
       ...(screenshots !== undefined && { screenshots: JSON.stringify(screenshots) }),
     }
@@ -407,7 +469,6 @@ export async function updateSite(id: string, data: {
     
     const parsedSite = {
       ...site,
-      tags: site.tags ? JSON.parse(site.tags) : [],
       platforms: site.platforms ? JSON.parse(site.platforms) : [],
       screenshots: site.screenshots ? JSON.parse(site.screenshots) : [],
     }
@@ -607,7 +668,7 @@ export async function getSystemSettings() {
       settings = await prisma.systemSettings.create({
         data: {
           id: "default",
-          footerCopyright: `© ${new Date().getFullYear()} Conan Nav. All rights reserved.`,
+          footerCopyright: `© ${new Date().getFullYear()} Everisk Nav. All rights reserved.`,
         },
       })
       // 重新获取以确保使用数据库默认值（siteName 等）
@@ -657,7 +718,7 @@ export async function updateSystemSettings(data: {
       settings = await prisma.systemSettings.create({
         data: {
           ...processedData,
-          footerCopyright: data.footerCopyright || `© ${new Date().getFullYear()} Conan Nav. All rights reserved.`,
+          footerCopyright: data.footerCopyright || `© ${new Date().getFullYear()} Everisk Nav. All rights reserved.`,
         },
       })
     } else {
@@ -717,8 +778,111 @@ export async function recordVisit(siteId: string, request?: Request) {
   }
 }
 
-export async function getVisitStats(days: number = 30, limit: number = 10) {
+export async function getVisitStats(
+  days: number = 30,
+  limit: number = 10,
+  metric: 'visits' | 'likes' | 'favorites' = 'visits'
+) {
   try {
+    const totalVisits = await prisma.visit.count({
+      where: days > 0 ? {
+        visitedAt: {
+          gte: new Date(Date.now() - days * 24 * 60 * 60 * 1000),
+        },
+      } : undefined,
+    })
+
+    if (metric === 'likes') {
+      const topLikedSites = await prisma.site.findMany({
+        where: {
+          likesCount: { gt: 0 },
+        },
+        orderBy: [
+          { likesCount: 'desc' },
+          { updatedAt: 'desc' },
+        ],
+        take: limit === 0 ? undefined : limit,
+        include: {
+          category: true,
+        },
+      })
+
+      const topSitesWithDetails = topLikedSites.map((site) => ({
+        ...site,
+        visitCount: 0,
+        likesCount: site.likesCount,
+        favoritesCount: 0,
+      }))
+
+      return {
+        success: true,
+        data: {
+          topSites: topSitesWithDetails,
+          totalVisits,
+        },
+      }
+    }
+
+    if (metric === 'favorites') {
+      try {
+        const topFavorited = await prisma.favorite.groupBy({
+          by: ['siteId'],
+          _count: {
+            siteId: true,
+          },
+          orderBy: {
+            _count: {
+              siteId: 'desc',
+            },
+          },
+          take: limit === 0 ? undefined : limit,
+        })
+
+        const siteIds = topFavorited.map((item) => item.siteId)
+        const sites = await prisma.site.findMany({
+          where: {
+            id: { in: siteIds },
+          },
+          include: {
+            category: true,
+          },
+        })
+
+        const topSitesWithDetails = topFavorited
+          .map((stat) => {
+            const site = sites.find((s) => s.id === stat.siteId)
+            if (!site) {
+              return null
+            }
+
+            return {
+              ...site,
+              visitCount: 0,
+              likesCount: site.likesCount,
+              favoritesCount: stat._count.siteId,
+            }
+          })
+          .filter((site): site is NonNullable<typeof site> => site !== null)
+
+        return {
+          success: true,
+          data: {
+            topSites: topSitesWithDetails,
+            totalVisits,
+          },
+        }
+      } catch {
+        // Favorite table may not exist yet in some environments; graceful fallback
+        return {
+          success: true,
+          data: {
+            topSites: [],
+            totalVisits,
+          },
+        }
+      }
+    }
+
     const topSites = await prisma.visit.groupBy({
       by: ['siteId'],
       where: days > 0 ? {
@@ -749,19 +913,19 @@ export async function getVisitStats(days: number = 30, limit: number = 10) {
 
     const topSitesWithDetails = topSites.map(stat => {
       const site = sites.find(s => s.id === stat.siteId)
+
+      if (!site) {
+        return null
+      }
+
       return {
         ...site,
         visitCount: stat._count.id,
+        likesCount: site.likesCount,
+        favoritesCount: 0,
       }
     })
-
-    const totalVisits = await prisma.visit.count({
-      where: days > 0 ? {
-        visitedAt: {
-          gte: new Date(Date.now() - days * 24 * 60 * 60 * 1000),
-        },
-      } : undefined,
-    })
+      .filter((site): site is NonNullable<typeof site> => site !== null)
 
     return {
       success: true,

@@ -18,19 +18,30 @@ export async function likeSite(id: string) {
 
 export async function unlikeSite(id: string) {
   try {
-    // Prevent negative: check current count first
-    const current = await prisma.site.findUnique({
+    // 原子条件更新，避免并发下出现负数或重复扣减
+    await prisma.site.updateMany({
+      where: {
+        id,
+        likesCount: {
+          gt: 0,
+        },
+      },
+      data: {
+        likesCount: {
+          decrement: 1,
+        },
+      },
+    })
+
+    const site = await prisma.site.findUnique({
       where: { id },
       select: { likesCount: true },
     })
-    if (!current || current.likesCount <= 0) {
-      return { success: true, likesCount: 0 }
+
+    if (!site) {
+      return { success: false, error: "Site not found" }
     }
-    const site = await prisma.site.update({
-      where: { id },
-      data: { likesCount: { decrement: 1 } },
-      select: { likesCount: true },
-    })
+
     return { success: true, likesCount: site.likesCount }
   } catch (error) {
     console.error("Error unliking site:", error)
@@ -54,19 +65,30 @@ export async function likeFeedback(id: string) {
 
 export async function unlikeFeedback(id: string) {
   try {
-    // Prevent negative: check current count first
-    const current = await prisma.feedback.findUnique({
+    // 原子条件更新，避免并发下出现负数或重复扣减
+    await prisma.feedback.updateMany({
+      where: {
+        id,
+        likesCount: {
+          gt: 0,
+        },
+      },
+      data: {
+        likesCount: {
+          decrement: 1,
+        },
+      },
+    })
+
+    const feedback = await prisma.feedback.findUnique({
       where: { id },
       select: { likesCount: true },
     })
-    if (!current || current.likesCount <= 0) {
-      return { success: true, likesCount: 0 }
+
+    if (!feedback) {
+      return { success: false, error: "Feedback not found" }
     }
-    const feedback = await prisma.feedback.update({
-      where: { id },
-      data: { likesCount: { decrement: 1 } },
-      select: { likesCount: true },
-    })
+
     return { success: true, likesCount: feedback.likesCount }
   } catch (error) {
     console.error("Error unliking feedback:", error)
