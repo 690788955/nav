@@ -73,122 +73,230 @@
 - **UI**: shadcn/ui、Tailwind CSS、Lucide Icons
 - **图表**: Recharts
 - **后端**: Next.js Server Actions、Prisma ORM
-- **数据库**: PostgreSQL
+- **数据库**: SQLite（默认）/ PostgreSQL（可选）
 - **认证**: 简单 Cookie 认证（单管理员）
 - **部署**: Docker、GitHub Actions CI/CD
 
 ## 🚀 快速开始
 
-### 本地开发
+### 本地启动（开发模式）
+
+#### 0）前置条件
+
+- Node.js `>=20`
+- npm `>=10`
+- Git
+
+可选：
+- Docker Desktop（如果你想用 Docker 启动）
+
+---
+
+#### 1）拉取代码并安装依赖
 
 ```bash
-# 1. 安装依赖
+git clone https://github.com/690788955/nav.git
+cd nav
 npm install
+```
 
-# 2. 配置环境变量
+---
+
+#### 2）配置环境变量
+
+```bash
 cp .env.example .env
-# 编辑 .env 文件，配置数据库连接
+```
 
-# 3. 初始化数据库（会自动填充基础数据）
+最少需要确认这几项：
+
+```bash
+# 必填：会话加密密钥
+NEXTAUTH_SECRET=your-nextauth-secret-here
+
+# 本地访问地址
+NEXTAUTH_URL=http://localhost:3000
+
+# 本地默认使用 SQLite
+DATABASE_URL="file:./dev.db"
+
+# 应用端口（可改）
+PORT=3000
+```
+
+> ⚠️ 注意：`DATABASE_URL` 协议必须与 `prisma/schema.prisma` 里的 `provider` 一致。
+
+---
+
+#### 3）初始化数据库（首次必做）
+
+```bash
+# 生成 Prisma Client
 npx prisma generate
-npm run db:push  # 4个分类+4个示例网站
 
-# 如需更多示例数据：
-npm run db:seed:full  # 10个分类+50+个精选网站
+# 同步 schema + 初始化基础数据（会执行 seed）
+npm run db:push
+```
 
-# 4. 启动开发服务器
+如果你想要更多演示数据：
+
+```bash
+npm run db:seed:full
+```
+
+---
+
+#### 4）启动开发服务
+
+```bash
 npm run dev
 ```
 
-🌐 **访问地址**：
+默认访问地址：
 - 前台：`http://localhost:3000`
 - 后台：`http://localhost:3000/admin`
+- 健康检查：`http://localhost:3000/api/health`
 
-**默认管理员账号**：
+如果 3000 端口被占用：
+
+```bash
+npm run dev -- -p 3010
+```
+
+---
+
+#### 5）默认管理员账号
+
 - 邮箱：`admin@example.com`
 - 密码：`admin123`
 
-⚠️ **重要**：首次登录后请立即修改默认密码！
+⚠️ 首次登录后请立即修改默认密码。
 
 ## 📦 生产部署
 
-### 方式一：使用 Docker（推荐）
+### 方式一：Docker Compose（推荐）
 
-本项目提供完整的 Docker 部署方案，包括优化的多阶段构建和 docker-compose 配置。
+仓库已提供完整 Dockerfile（多阶段构建）和 `docker-compose.yml`，支持应用 + 数据库一键启动。
 
-#### 快速开始
+#### 0）服务器前置条件
+
+- Docker Engine `>=24`
+- Docker Compose v2（`docker compose version` 可用）
+- 服务器放通业务端口（默认 3000）
+
+---
+
+#### 1）准备环境变量
 
 ```bash
-# 1. 克隆代码
-git clone https://github.com/690788955/nav.git
-cd nav
-
-# 2. 配置环境变量
 cp .env.example .env
-# 编辑 .env 文件，配置 NEXTAUTH_SECRET
-# Docker 部署时 DATABASE_URL 会自动生成
-
-# 3. 启动服务（使用 GitHub Actions 构建的镜像）
-docker compose up -d
-
-# 4. 查看日志
-docker compose logs -f nav
 ```
 
-🌐 **访问地址**（根据 `PORT` 环境变量，默认 3000）：
-- 本地：`http://localhost:3000`
-- 远程：`http://你的服务器IP:3000` 或 `http://你的域名.com`
-- 后台：`http://localhost:3000/admin` 或 `http://你的域名.com/admin`
-
-#### 环境变量（Docker 部署）
+至少修改以下项：
 
 ```bash
-# 核心配置（必填）
 NEXTAUTH_SECRET=your-nextauth-secret-here
-NEXTAUTH_URL=http://localhost:3000 # 生产环境填写实际域名
+NEXTAUTH_URL=http://你的域名或IP:3000
 
-# Docker 配置（可选，有默认值）
+# 建议修改默认数据库密码
+POSTGRES_PASSWORD=change-this-password
+```
+
+可选项（有默认值）：
+
+```bash
 POSTGRES_USER=nav
-POSTGRES_PASSWORD=FkyM5NhrsYHtmmKc
 POSTGRES_DB=nav
 POSTGRES_PORT=5432
 PORT=3000
 ```
 
-#### 常用命令
+---
+
+#### 2）启动服务
 
 ```bash
-# 拉取最新镜像并重启
-docker compose pull && docker compose up -d
+# 启动（首次会自动拉取镜像）
+docker compose up -d
 
-# 查看服务状态
+# 查看状态
 docker compose ps
 
-# 查看日志
+# 追踪日志
 docker compose logs -f nav
+```
 
-# 停止服务
+访问地址：
+- 前台：`http://你的域名或IP:3000`
+- 后台：`http://你的域名或IP:3000/admin`
+- 健康检查：`http://你的域名或IP:3000/api/health`
+
+---
+
+#### 3）首启行为说明（重要）
+
+`nav` 容器内 `entrypoint.sh` 会自动执行：
+1. 检查并执行 Prisma 迁移 / schema 同步
+2. 检查管理员是否存在
+3. 若未初始化则自动 seed
+4. 最后启动 Next.js 服务
+
+这意味着**首次启动时间会比平时长**，属于正常现象。
+
+---
+
+#### 4）升级与回滚
+
+升级：
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+查看当前镜像与容器状态：
+
+```bash
+docker compose ps
+docker compose images
+```
+
+停止服务：
+
+```bash
 docker compose down
+```
 
-# 停止服务并删除数据卷（⚠️ 会删除数据库数据）
+删除服务 + 数据卷（会删除数据库）：
+
+```bash
 docker compose down -v
 ```
 
-#### GitHub Actions CI/CD
+---
 
-本项目使用 GitHub Actions 自动构建 Docker 镜像，推送到 GitHub Container Registry：
+#### 5）发布镜像（CI/CD）
 
-- **镜像地址**: `ghcr.io/kenanlabs/nav:latest`
-- **触发条件**: Git tag 推送（格式：`v*.*.*`）
-- **构建结果**: 同时推送 `version` 和 `latest` 标签
+本项目通过 GitHub Actions 自动构建并发布：
+- 镜像地址：`ghcr.io/kenanlabs/nav:latest`
+- 触发条件：推送 tag（`v*.*.*`）
 
-**发布新版本**：
+发布新版本：
 
 ```bash
-# 创建并推送 git tag（触发 GitHub Actions）
 git tag v1.0.0
 git push origin v1.0.0
 ```
+
+---
+
+#### 6）部署常见坑（建议先看）
+
+1. `NEXTAUTH_URL` 写错（协议、域名或端口不匹配）会导致登录/回调异常。  
+2. `NEXTAUTH_SECRET` 过短或为空会引发会话问题。  
+3. `DATABASE_URL` 协议与 Prisma provider 不一致会导致 Prisma 启动失败。  
+4. 端口冲突（3000/5432 被占用）会导致容器起不来。  
+5. 首次启动数据库初始化未完成前，`/api/health` 可能短暂失败。
 
 ### 方式二：使用 PM2 + Nginx
 
@@ -223,13 +331,13 @@ pm2 save
 
 | 变量名 | 说明 | 示例 | 必填 |
 |--------|------|------|------|
-| `DATABASE_URL` | PostgreSQL 连接字符串（**Docker 部署时自动生成**） | `postgresql://user:pass@localhost:5432/nav` | ❌（Docker）/ ✅（本地） |
+| `DATABASE_URL` | 数据库连接串（本地默认 SQLite，Docker 默认 PostgreSQL） | `file:./dev.db` / `postgresql://user:pass@localhost:5432/nav` | ❌（Docker Compose）/ ⚠️（本地可用默认） |
 | `NEXTAUTH_SECRET` | 加密密钥 | 随机字符串（`openssl rand -base64 32`） | ✅ |
 | `NEXTAUTH_URL` | 应用完整 URL | `http://localhost:3000` 或 `https://your-domain.com` | ✅ |
 
-**Docker 部署**：只需配置 `NEXTAUTH_SECRET`，其他环境变量有默认值或自动生成。
+**Docker 部署**：只需配置 `NEXTAUTH_SECRET`（建议同时设置 `NEXTAUTH_URL`），`DATABASE_URL` 由 compose 自动注入。
 
-**本地开发**：需要手动配置完整的 `DATABASE_URL`。
+**本地开发**：默认可直接使用 `file:./dev.db`，如需换 PostgreSQL 再手动修改 `DATABASE_URL`。
 
 ## 📁 项目结构
 
@@ -287,10 +395,9 @@ git pull && npm install && npm run db:migrate:deploy && npm start
 
 ### 为什么数据库连接失败？
 
-1. PostgreSQL 服务是否启动
-2. `.env` 文件中的 `DATABASE_URL` 是否正确
-3. 数据库用户名和密码是否正确
-4. 数据库 `nav` 是否已创建
+1. `.env` 文件中的 `DATABASE_URL` 协议是否与 `prisma/schema.prisma` 的 `provider` 一致
+2. 如果是 SQLite：`dev.db` 文件路径与读写权限是否正常
+3. 如果是 PostgreSQL：服务是否启动、账号密码是否正确、数据库是否已创建
 
 ### 如何重置管理员密码？
 
