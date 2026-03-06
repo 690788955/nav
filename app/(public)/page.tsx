@@ -1,5 +1,6 @@
 import { SearchableLayout } from "@/components/layout/searchable-layout"
 import { SiteCard } from "@/components/layout/site-card"
+import { FavoritesSection } from "@/components/layout/favorites-section"
 import { getAllCategories, getCategories, getSystemSettings, getSites } from "@/lib/actions"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
@@ -25,6 +26,7 @@ export default async function HomePage() {
       siteName={settings?.siteName}
     >
       <div className="space-y-12">
+        <FavoritesSection allSites={flatSites} />
         {/* 分类内容 */}
         {categories && categories.length > 0 ? (
           <>
