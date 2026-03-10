@@ -23,10 +23,7 @@ services:
   # Next.js 应用（PostgreSQL 版本：PRISMA_PROVIDER=postgresql）
   nav:
     image: ghcr.nju.edu.cn/690788955/nav
-    build:
-      context: .
-      args:
-        PRISMA_PROVIDER: postgresql
+    pull_policy: always
     container_name: nav
     restart: unless-stopped
     ports:
