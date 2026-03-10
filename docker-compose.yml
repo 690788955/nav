@@ -20,9 +20,13 @@ services:
     networks:
       - network
 
-  # Next.js 应用
+  # Next.js 应用（PostgreSQL 版本：PRISMA_PROVIDER=postgresql）
   nav:
-    image: ghcr.io/kenanlabs/nav:latest
+    image: nav:postgresql
+    build:
+      context: .
+      args:
+        PRISMA_PROVIDER: postgresql
     container_name: nav
     restart: unless-stopped
     ports:

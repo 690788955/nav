@@ -7,6 +7,16 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 COPY prisma ./prisma
 
+# 选择 Prisma provider（构建时决定，不能运行时切换）
+ARG PRISMA_PROVIDER=sqlite
+RUN if [ "$PRISMA_PROVIDER" = "postgresql" ]; then \
+      cp prisma/schema.postgresql.prisma prisma/schema.prisma; \
+    elif [ "$PRISMA_PROVIDER" = "sqlite" ]; then \
+      true; \
+    else \
+      echo "Unsupported PRISMA_PROVIDER: $PRISMA_PROVIDER" && exit 1; \
+    fi
+
 # 安装所有依赖
 RUN npm ci && \
     npm cache clean --force
@@ -31,6 +41,9 @@ ENV HOSTNAME="0.0.0.0"
 # 创建非 root 用户
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
+
+# SQLite 数据目录（可挂载 volume）
+RUN mkdir -p /app/data && chown -R nextjs:nodejs /app/data
 
 # 复制必要文件
 COPY --from=builder /app/public ./public

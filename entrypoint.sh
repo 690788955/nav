@@ -3,6 +3,42 @@ set -e
 
 echo "🔧 初始化数据库..."
 
+# Prisma 的 datasource provider 不能在运行时切换（必须与生成 Prisma Client 时一致）。
+# 这里根据 DATABASE_URL 的 scheme 选择初始化策略：
+# - SQLite：使用 db push（忽略迁移目录）
+# - PostgreSQL：按迁移目录执行 migrate deploy，并做 baseline 兼容
+
+if echo "${DATABASE_URL:-}" | grep -q "^file:"; then
+  echo "🗄️  检测到 SQLite，使用 db push 同步 schema..."
+  npx prisma db push --skip-generate
+
+  # 检查是否已初始化（检查管理员用户是否存在）
+  echo "🔍 检查数据库是否已初始化..."
+  if node -e "
+    const { PrismaClient } = require('@prisma/client');
+    const prisma = new PrismaClient();
+    prisma.user.findFirst({ where: { role: 'ADMIN' } })
+      .then(user => {
+        if (user) {
+          console.log('✅ 数据库已初始化，跳过 seed');
+          process.exit(0);
+        } else {
+          console.log('🌱 数据库未初始化，开始 seed...');
+          process.exit(1);
+        }
+      })
+      .catch(() => process.exit(1));
+  "; then
+    echo "✅ 跳过 seed"
+  else
+    echo "🌱 执行 seed 脚本（init 模式：仅创建管理员和系统设置）..."
+    npx tsx prisma/seed.ts init
+  fi
+
+  echo "🚀 启动应用..."
+  exec node server.js
+fi
+
 # 检查是否存在迁移文件夹
 if [ -d "/app/prisma/migrations" ] && [ "$(ls -A /app/prisma/migrations)" ]; then
   echo "📦 检测到迁移文件，执行 Prisma Migrate..."
