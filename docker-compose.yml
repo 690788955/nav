@@ -22,7 +22,7 @@ services:
 
   # Next.js 应用（PostgreSQL 版本：PRISMA_PROVIDER=postgresql）
   nav:
-    image: nav:postgresql
+    image: ghcr.nju.edu.cn/690788955/nav
     build:
       context: .
       args:
