@@ -45,9 +45,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { Plus, Pencil, Trash2, Power, Loader2, RotateCcw } from "lucide-react"
+import { Plus, Pencil, Trash2, Power, Loader2, RotateCcw, GripVertical } from "lucide-react"
 import { SiteFormDialog } from "@/components/admin/site-form-dialog"
-import { getSitesWithPagination, deleteSite, toggleSitePublish, getCategoriesForFilter } from "@/lib/actions"
+import { getSitesWithPagination, deleteSite, toggleSitePublish, getCategoriesForFilter, reorderSites } from "@/lib/actions"
 import { useToast } from "@/hooks/use-toast"
 import { adminPageCopy } from "@/lib/admin-copy"
 
@@ -77,6 +77,24 @@ interface PaginationInfo {
   totalPages: number
 }
 
+function moveSite(items: Site[], fromId: string, toId: string): Site[] {
+  const fromIndex = items.findIndex((item) => item.id === fromId)
+  const toIndex = items.findIndex((item) => item.id === toId)
+
+  if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) {
+    return items
+  }
+
+  const next = [...items]
+  const [moved] = next.splice(fromIndex, 1)
+  next.splice(toIndex, 0, moved)
+
+  return next.map((item, index) => ({
+    ...item,
+    order: index + 1,
+  }))
+}
+
 export default function AdminSitesPage() {
   const { toast } = useToast()
   const [sites, setSites] = useState<Site[]>([])
@@ -96,6 +114,11 @@ export default function AdminSitesPage() {
   const [page, setPage] = useState(1)
   const [pagination, setPagination] = useState<PaginationInfo | null>(null)
   const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([])
+
+  // 拖动排序状态
+  const [draggingSiteId, setDraggingSiteId] = useState<string | null>(null)
+  const [dragOverSiteId, setDragOverSiteId] = useState<string | null>(null)
+  const [savingOrder, setSavingOrder] = useState(false)
 
   // 加载网站列表
   const loadSites = async (currentPage = page) => {
@@ -243,6 +266,62 @@ title: "加载失败",
     }
   }
 
+  // 拖动排序处理
+  const handleDragStart = (siteId: string) => {
+    setDraggingSiteId(siteId)
+  }
+
+  const handleDragEnd = () => {
+    setDraggingSiteId(null)
+    setDragOverSiteId(null)
+  }
+
+  const handleDrop = async (targetSiteId: string) => {
+    if (!draggingSiteId || draggingSiteId === targetSiteId || savingOrder) {
+      return
+    }
+
+    const previous = [...sites]
+    const next = moveSite(sites, draggingSiteId, targetSiteId)
+
+    if (next === sites) {
+      handleDragEnd()
+      return
+    }
+
+    setSites(next)
+    setSavingOrder(true)
+    handleDragEnd()
+
+    try {
+      const result = await reorderSites(next.map((item) => item.id))
+      if (!result.success) {
+        setSites(previous)
+        toast({
+          variant: "destructive",
+          title: "排序失败",
+          description: result.error || "网站排序保存失败，请稍后重试",
+        })
+        return
+      }
+
+      toast({
+        title: "排序已更新",
+        description: "网站优先级已按拖拽顺序保存",
+      })
+      loadSites()
+    } catch (error) {
+      setSites(previous)
+      toast({
+        variant: "destructive",
+        title: "排序失败",
+        description: "发生错误，请稍后重试",
+      })
+    } finally {
+      setSavingOrder(false)
+    }
+  }
+
   return (
     <div className="space-y-4 p-6">
       {/* 筛选器工具栏 */}
@@ -343,6 +422,7 @@ title: "加载失败",
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12"></TableHead>
                   <TableHead className="w-16">图标</TableHead>
                   <TableHead>名称</TableHead>
                   <TableHead>URL</TableHead>
@@ -353,9 +433,43 @@ title: "加载失败",
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sites.map((site) => (
-                  <TableRow key={site.id}>
-                    <TableCell>
+                {sites.map((site) => {
+                  const isDragging = draggingSiteId === site.id
+                  const isDragOver = dragOverSiteId === site.id && draggingSiteId !== site.id
+
+                  return (
+                    <TableRow
+                      key={site.id}
+                      draggable={!savingOrder}
+                      onDragStart={() => handleDragStart(site.id)}
+                      onDragEnd={handleDragEnd}
+                      onDragOver={(event) => {
+                        event.preventDefault()
+                        if (dragOverSiteId !== site.id) {
+                          setDragOverSiteId(site.id)
+                        }
+                      }}
+                      onDrop={(event) => {
+                        event.preventDefault()
+                        handleDrop(site.id)
+                      }}
+                      className={[
+                        "transition-colors",
+                        isDragging ? "opacity-40" : "",
+                        isDragOver ? "bg-muted/60" : "",
+                      ].join(" ")}
+                    >
+                      <TableCell>
+                        <button
+                          type="button"
+                          className="cursor-grab text-muted-foreground active:cursor-grabbing"
+                          aria-label="拖拽调整排序"
+                          disabled={savingOrder}
+                        >
+                          <GripVertical className="h-4 w-4" />
+                        </button>
+                      </TableCell>
+                      <TableCell>
                       {site.iconUrl ? (
                         <img
                           src={site.iconUrl}
@@ -450,9 +564,17 @@ title: "加载失败",
                       </TooltipProvider>
                     </TableCell>
                   </TableRow>
-                ))}
+                  )
+                })}
               </TableBody>
             </Table>
+          )}
+
+          {savingOrder && (
+            <div className="mt-4 flex items-center text-sm text-muted-foreground">
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              正在保存排序...
+            </div>
           )}
         </CardContent>
       </Card>

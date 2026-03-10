@@ -235,6 +235,65 @@ export async function reorderCategories(categoryIds: string[]) {
   }
 }
 
+export async function reorderSites(siteIds: string[]) {
+  try {
+    if (!Array.isArray(siteIds) || siteIds.length === 0) {
+      return { success: false, error: "Invalid site order" }
+    }
+
+    const uniqueSiteIds = Array.from(new Set(siteIds))
+    if (uniqueSiteIds.length !== siteIds.length) {
+      return { success: false, error: "Invalid site order" }
+    }
+
+    const sites = await prisma.site.findMany({
+      select: {
+        id: true,
+        categoryId: true,
+      },
+    })
+
+    if (sites.length !== uniqueSiteIds.length) {
+      return { success: false, error: "网站数量不匹配，请刷新后重试" }
+    }
+
+    const existingSiteIds = new Set(sites.map((site) => site.id))
+    const hasUnknownSite = uniqueSiteIds.some((id) => !existingSiteIds.has(id))
+    if (hasUnknownSite) {
+      return { success: false, error: "网站数据已变更，请刷新后重试" }
+    }
+
+    await prisma.$transaction(
+      uniqueSiteIds.map((id, index) =>
+        prisma.site.update({
+          where: { id },
+          data: { order: index + 1 },
+        })
+      )
+    )
+
+    revalidatePath("/admin/sites")
+    revalidatePath("/")
+    revalidatePath("/search")
+
+    // 获取所有相关分类的 slug 并 revalidate
+    const categoryIds = [...new Set(sites.map((site) => site.categoryId))]
+    const categories = await prisma.category.findMany({
+      where: { id: { in: categoryIds } },
+      select: { slug: true },
+    })
+
+    categories.forEach((category) => {
+      revalidatePath(`/category/${category.slug}`)
+    })
+
+    return { success: true }
+  } catch (error) {
+    console.error("Error reordering sites:", error)
+    return { success: false, error: "Failed to reorder sites" }
+  }
+}
+
 export async function deleteCategory(id: string) {
   try {
     await prisma.category.delete({
