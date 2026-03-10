@@ -147,6 +147,7 @@ docker compose -f docker-compose.sqlite.yml up -d
 
 2. **Dockerfile 构建参数**:
    - `PRISMA_PROVIDER=sqlite|postgresql`
+   - 默认：`postgresql`
    - 构建阶段会在 `npm ci` 前把对应 schema 复制到 `prisma/schema.prisma`，确保 `prisma generate` 生成匹配的 Prisma Client
 
 3. **entrypoint 初始化策略**:
