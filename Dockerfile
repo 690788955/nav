@@ -8,7 +8,8 @@ COPY package.json package-lock.json* ./
 COPY prisma ./prisma
 
 # 选择 Prisma provider（构建时决定，不能运行时切换）
-ARG PRISMA_PROVIDER=sqlite
+# 生产默认使用 PostgreSQL；如需 SQLite，构建时传 PRISMA_PROVIDER=sqlite
+ARG PRISMA_PROVIDER=postgresql
 RUN if [ "$PRISMA_PROVIDER" = "postgresql" ]; then \
       cp prisma/schema.postgresql.prisma prisma/schema.prisma; \
     elif [ "$PRISMA_PROVIDER" = "sqlite" ]; then \

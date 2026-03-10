@@ -3,6 +3,30 @@ set -e
 
 echo "🔧 初始化数据库..."
 
+# Guard: DATABASE_URL 必须与 schema.prisma 的 provider 匹配
+SCHEMA_PROVIDER=$(grep -E "^\s*provider\s*=\s*\"(sqlite|postgresql)\"" -m 1 /app/prisma/schema.prisma | sed -E 's/.*"(sqlite|postgresql)".*/\1/' || true)
+
+if [ -z "${DATABASE_URL:-}" ]; then
+  echo "❌ DATABASE_URL 未设置。请在容器环境变量中配置 DATABASE_URL。"
+  exit 1
+fi
+
+if echo "${DATABASE_URL}" | grep -q "^file:"; then
+  if [ "$SCHEMA_PROVIDER" = "postgresql" ]; then
+    echo "❌ 当前 Prisma schema provider=postgresql，但 DATABASE_URL 是 SQLite(file:)。"
+    echo "   解决：使用 SQLite 镜像/构建参数 PRISMA_PROVIDER=sqlite，或改用 postgresql:// 的 DATABASE_URL。"
+    exit 1
+  fi
+else
+  # 不是 file: 就当作 PostgreSQL（docker 生产默认）
+  if [ "$SCHEMA_PROVIDER" = "sqlite" ]; then
+    echo "❌ 当前 Prisma schema provider=sqlite，但 DATABASE_URL 不是 file:（看起来是 PostgreSQL）。"
+    echo "   解决：重新构建镜像时使用 PRISMA_PROVIDER=postgresql（Dockerfile 默认已是 postgresql），"
+    echo "        或使用 docker-compose.yml（PostgreSQL 版本）。"
+    exit 1
+  fi
+fi
+
 # Prisma 的 datasource provider 不能在运行时切换（必须与生成 Prisma Client 时一致）。
 # 这里根据 DATABASE_URL 的 scheme 选择初始化策略：
 # - SQLite：使用 db push（忽略迁移目录）
