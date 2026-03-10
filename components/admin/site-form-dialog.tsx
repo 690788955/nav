@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { createSite, updateSite, getAllCategories } from "@/lib/actions"
+import { fetchSiteMetadata } from "@/lib/actions/metadata"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2, Sparkles } from "lucide-react"
 
@@ -214,9 +215,23 @@ export function SiteFormDialog({ open, onOpenChange, site, mode, onSuccess }: Si
                 size="sm"
                 disabled={fetching || !formData.url}
                 onClick={async () => {
-                  // TODO: Implement auto-fill logic in Task 5
                   setFetching(true)
-                  setTimeout(() => setFetching(false), 1000)
+                  try {
+                    const result = await fetchSiteMetadata(formData.url)
+                    if (result.success && result.data) {
+                      // Smart fill: only fill empty fields
+                      setFormData(prev => ({
+                        ...prev,
+                        name: prev.name || result.data!.title || "",
+                        description: prev.description || result.data!.description || "",
+                        iconUrl: prev.iconUrl || result.data!.iconUrl || "",
+                      }))
+                    }
+                  } catch (error) {
+                    console.error("Failed to fetch metadata:", error)
+                  } finally {
+                    setFetching(false)
+                  }
                 }}
                 className="w-fit"
               >
