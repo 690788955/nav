@@ -26,15 +26,25 @@ export function useFavorites() {
 
   const syncRemoteFavorites = async (values: string[]) => {
     try {
-      await fetch("/api/favorites", {
+      const response = await fetch("/api/favorites", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ favorites: values }),
       })
+
+      if (!response.ok) {
+        throw new Error("Failed to sync favorites")
+      }
+
+      const payload = await response.json()
+      return Array.isArray(payload?.favorites)
+        ? payload.favorites.filter((item: unknown): item is string => typeof item === "string")
+        : values
     } catch {
       // Ignore remote sync failures, local state remains source of truth in current session
+      return values
     }
   }
 
@@ -79,7 +89,17 @@ export function useFavorites() {
         }
 
         if (merged.length !== remote.length || merged.some((id, index) => id !== remote[index])) {
-          void syncRemoteFavorites(merged)
+          const canonical = await syncRemoteFavorites(merged)
+
+          try {
+            localStorage.setItem(FAVORITES_KEY, JSON.stringify(canonical))
+          } catch {
+            // localStorage unavailable
+          }
+
+          if (!cancelled) {
+            setFavorites(canonical)
+          }
         }
       } catch {
         // Keep local favorites when remote is unavailable
@@ -129,7 +149,21 @@ export function useFavorites() {
 
       localStorage.setItem(FAVORITES_KEY, JSON.stringify(updated))
       setFavorites(updated)
-      void syncRemoteFavorites(updated)
+      void syncRemoteFavorites(updated).then((canonical) => {
+        try {
+          localStorage.setItem(FAVORITES_KEY, JSON.stringify(canonical))
+        } catch {
+          // localStorage unavailable
+        }
+
+        setFavorites(canonical)
+
+        window.dispatchEvent(
+          new CustomEvent<{ values: string[] }>(FAVORITES_SYNC_EVENT, {
+            detail: { values: canonical },
+          })
+        )
+      })
 
       window.dispatchEvent(
         new CustomEvent<{ values: string[] }>(FAVORITES_SYNC_EVENT, {
@@ -143,7 +177,9 @@ export function useFavorites() {
           ? prev.filter((fav) => fav !== id)
           : [...prev, id]
 
-        void syncRemoteFavorites(updated)
+        void syncRemoteFavorites(updated).then((canonical) => {
+          setFavorites(canonical)
+        })
         return updated
       })
     }

@@ -50,9 +50,19 @@ export async function PUT(request: NextRequest) {
     })
 
     const existingIds = new Set(existing.map((item) => item.siteId))
-    const incomingIds = new Set(deduped)
 
-    const toCreate = deduped.filter((id) => !existingIds.has(id))
+    const validSites = deduped.length > 0
+      ? await prisma.site.findMany({
+          where: { id: { in: deduped } },
+          select: { id: true },
+        })
+      : []
+
+    const validSiteIds = new Set(validSites.map((site) => site.id))
+    const canonicalFavorites = deduped.filter((id) => validSiteIds.has(id))
+    const incomingIds = new Set(canonicalFavorites)
+
+    const toCreate = canonicalFavorites.filter((id) => !existingIds.has(id))
     const toDelete = existing
       .map((item) => item.siteId)
       .filter((id) => !incomingIds.has(id))
@@ -72,7 +82,7 @@ export async function PUT(request: NextRequest) {
       })
     }
 
-    return NextResponse.json({ success: true, favorites: deduped })
+    return NextResponse.json({ success: true, favorites: canonicalFavorites })
   } catch (error) {
     // Graceful fallback to local-only behavior when persistence unavailable
     console.error("Error updating favorites:", error)
