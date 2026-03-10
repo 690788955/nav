@@ -25,7 +25,7 @@ import {
 import { Switch } from "@/components/ui/switch"
 import { createSite, updateSite, getAllCategories } from "@/lib/actions"
 import { useToast } from "@/hooks/use-toast"
-import { Loader2 } from "lucide-react"
+import { Loader2, Sparkles } from "lucide-react"
 
 interface Site {
   id: string
@@ -59,6 +59,7 @@ export function SiteFormDialog({ open, onOpenChange, site, mode, onSuccess }: Si
   const router = useRouter()
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
+  const [fetching, setFetching] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
   const [formData, setFormData] = useState({
     name: "",
@@ -207,6 +208,30 @@ export function SiteFormDialog({ open, onOpenChange, site, mode, onSuccess }: Si
                 placeholder="https://example.com"
                 required
               />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={fetching || !formData.url}
+                onClick={async () => {
+                  // TODO: Implement auto-fill logic in Task 5
+                  setFetching(true)
+                  setTimeout(() => setFetching(false), 1000)
+                }}
+                className="w-fit"
+              >
+                {fetching ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    获取中...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    自动填充
+                  </>
+                )}
+              </Button>
             </div>
 
             <div className="grid gap-2">
@@ -371,7 +396,7 @@ export function SiteFormDialog({ open, onOpenChange, site, mode, onSuccess }: Si
             >
               取消
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading || fetching}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {mode === "create" ? "创建" : "保存"}
             </Button>
