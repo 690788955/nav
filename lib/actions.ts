@@ -246,21 +246,20 @@ export async function reorderSites(siteIds: string[]) {
       return { success: false, error: "Invalid site order" }
     }
 
+    // 只查询传入的网站 ID
     const sites = await prisma.site.findMany({
+      where: {
+        id: { in: uniqueSiteIds },
+      },
       select: {
         id: true,
         categoryId: true,
       },
     })
 
+    // 验证所有传入的 ID 都存在
     if (sites.length !== uniqueSiteIds.length) {
-      return { success: false, error: "网站数量不匹配，请刷新后重试" }
-    }
-
-    const existingSiteIds = new Set(sites.map((site) => site.id))
-    const hasUnknownSite = uniqueSiteIds.some((id) => !existingSiteIds.has(id))
-    if (hasUnknownSite) {
-      return { success: false, error: "网站数据已变更，请刷新后重试" }
+      return { success: false, error: "部分网站不存在，请刷新后重试" }
     }
 
     await prisma.$transaction(
