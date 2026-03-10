@@ -25,6 +25,16 @@ RUN npm ci && \
 # 复制剩余源代码
 COPY . .
 
+# COPY . . 会把仓库里的本地 SQLite schema.prisma 覆盖回来，
+# 这里必须在完整源码复制后再次选择一次目标 provider，确保生产镜像保留 PostgreSQL schema。
+RUN if [ "$PRISMA_PROVIDER" = "postgresql" ]; then \
+      cp prisma/schema.postgresql.prisma prisma/schema.prisma; \
+    elif [ "$PRISMA_PROVIDER" = "sqlite" ]; then \
+      true; \
+    else \
+      echo "Unsupported PRISMA_PROVIDER: $PRISMA_PROVIDER" && exit 1; \
+    fi
+
 # 构建
 RUN npm run build
 
