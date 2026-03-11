@@ -289,9 +289,12 @@ docker compose down -v
 
 #### 5）发布镜像（CI/CD）
 
-本项目通过 GitHub Actions 自动构建并发布：
-- 镜像地址：`ghcr.io/kenanlabs/nav:latest`
-- 触发条件：推送 tag（`v*.*.*`）
+本项目当前同时提供两套 CI 方案：
+
+- **GitHub Actions**：推送 tag（`v*.*.*`）后自动构建并发布到 GHCR
+  - 镜像地址：`ghcr.io/kenanlabs/nav:latest`
+- **GitLab CI**：推送 tag（`v*.*.*`）后自动构建 Docker 镜像，并保存为可下载 artifact（默认不推送到镜像仓库）
+  - 说明文档：[`docs/GITLAB_RUNNER.md`](docs/GITLAB_RUNNER.md)
 
 发布新版本：
 
