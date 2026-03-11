@@ -45,6 +45,13 @@ CLAUDE.md
 .omc/*
 .serena/
 
+# local spec workflow artifacts
+.spec-workflow/*
+!.spec-workflow/templates/
+!.spec-workflow/templates/**
+!.spec-workflow/user-templates/
+!.spec-workflow/user-templates/**
+
 # uploads data
 /data/
 
