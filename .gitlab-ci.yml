@@ -4,13 +4,15 @@ stages:
 workflow:
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
-    - when: never
+    - if: '$CI_PIPELINE_SOURCE == "web"'
 
 variables:
   DOCKER_HOST: tcp://docker:2375
   DOCKER_TLS_CERTDIR: ""
   DOCKER_DRIVER: overlay2
   IMAGE_NAME: nav
+  # 手动触发时无 tag，使用 commit short SHA 作为版本号
+  IMAGE_TAG: ${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}
 
 docker-package:
   stage: package
@@ -23,15 +25,16 @@ docker-package:
     # 需要使用支持 privileged + dind 的 Docker Runner
     - until docker info; do echo "waiting for docker daemon..."; sleep 2; done
   script:
-    - docker build --build-arg PRISMA_PROVIDER=postgresql --file Dockerfile --tag "$IMAGE_NAME:$CI_COMMIT_TAG" --tag "$IMAGE_NAME:latest" .
-    - docker image inspect "$IMAGE_NAME:$CI_COMMIT_TAG" --format '{{.Id}}'
-    - docker save "$IMAGE_NAME:$CI_COMMIT_TAG" | gzip > "${IMAGE_NAME}-${CI_COMMIT_TAG}.tar.gz"
-    - sha256sum "${IMAGE_NAME}-${CI_COMMIT_TAG}.tar.gz" > "${IMAGE_NAME}-${CI_COMMIT_TAG}.tar.gz.sha256"
+    - docker build --build-arg PRISMA_PROVIDER=postgresql --file Dockerfile --tag "$IMAGE_NAME:$IMAGE_TAG" --tag "$IMAGE_NAME:latest" .
+    - docker image inspect "$IMAGE_NAME:$IMAGE_TAG" --format '{{.Id}}'
+    - docker save "$IMAGE_NAME:$IMAGE_TAG" | gzip > "${IMAGE_NAME}-${IMAGE_TAG}.tar.gz"
+    - sha256sum "${IMAGE_NAME}-${IMAGE_TAG}.tar.gz" > "${IMAGE_NAME}-${IMAGE_TAG}.tar.gz.sha256"
   artifacts:
-    name: "$CI_PROJECT_NAME-$CI_COMMIT_TAG-docker-image"
+    name: "$CI_PROJECT_NAME-$IMAGE_TAG-docker-image"
     expire_in: 7 days
     paths:
-      - "${IMAGE_NAME}-${CI_COMMIT_TAG}.tar.gz"
-      - "${IMAGE_NAME}-${CI_COMMIT_TAG}.tar.gz.sha256"
+      - "${IMAGE_NAME}-${IMAGE_TAG}.tar.gz"
+      - "${IMAGE_NAME}-${IMAGE_TAG}.tar.gz.sha256"
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
