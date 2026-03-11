@@ -490,9 +490,12 @@ export async function createSite(data: {
     revalidatePath("/")
     revalidatePath(`/category/${site.category?.slug || ''}`)
     return { success: true, data: parsedSite }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating site:", error)
-    return { success: false, error: "Failed to create site" }
+    if (error?.code === "P2003") {
+      return { success: false, error: "所选分类不存在，请重新选择" }
+    }
+    return { success: false, error: "创建网站失败，请稍后重试" }
   }
 }
 
@@ -535,9 +538,12 @@ export async function updateSite(id: string, data: {
     revalidatePath("/")
     revalidatePath(`/category/${site.category?.slug || ''}`)
     return { success: true, data: parsedSite }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error updating site:", error)
-    return { success: false, error: "Failed to update site" }
+    if (error?.code === "P2003") {
+      return { success: false, error: "所选分类不存在，请重新选择" }
+    }
+    return { success: false, error: "更新网站失败，请稍后重试" }
   }
 }
 

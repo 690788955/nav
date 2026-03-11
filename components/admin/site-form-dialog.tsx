@@ -27,6 +27,7 @@ import { createSite, updateSite, getAllCategories } from "@/lib/actions"
 import { fetchSiteMetadata } from "@/lib/actions/metadata"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2, Sparkles } from "lucide-react"
+import { ImageUpload } from "@/components/admin/image-upload"
 
 interface Site {
   id: string
@@ -135,6 +136,16 @@ export function SiteFormDialog({ open, onOpenChange, site, mode, onSuccess }: Si
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!formData.categoryId) {
+      toast({
+        variant: "destructive",
+        title: "请选择分类",
+        description: "分类为必填项，请从下拉列表中选择",
+      })
+      return
+    }
+
     setLoading(true)
 
     try {
@@ -325,18 +336,18 @@ export function SiteFormDialog({ open, onOpenChange, site, mode, onSuccess }: Si
             </div>
 
             <div className="grid gap-2">
-              <Label>截图 URL</Label>
+              <Label>截图</Label>
               {formData.screenshots.map((url, index) => (
-                <div key={index} className="flex gap-2">
-                  <Input
-                    type="url"
+                <div key={index} className="flex gap-2 items-center">
+                  <ImageUpload
                     value={url}
-                    onChange={(e) => {
+                    onChange={(newUrl) => {
                       const updatedScreenshots = [...formData.screenshots]
-                      updatedScreenshots[index] = e.target.value
+                      updatedScreenshots[index] = newUrl
                       setFormData({ ...formData, screenshots: updatedScreenshots })
                     }}
-                    placeholder="https://example.com/screenshot.png"
+                    placeholder="输入截图 URL 或点击上传"
+                    className="flex-1"
                   />
                   <Button
                     type="button"
@@ -377,13 +388,11 @@ export function SiteFormDialog({ open, onOpenChange, site, mode, onSuccess }: Si
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="iconUrl">图标 URL</Label>
-              <Input
-                id="iconUrl"
-                type="url"
+              <Label htmlFor="iconUrl">图标</Label>
+              <ImageUpload
                 value={formData.iconUrl}
-                onChange={(e) => setFormData({ ...formData, iconUrl: e.target.value })}
-                placeholder="https://example.com/icon.png"
+                onChange={(url) => setFormData({ ...formData, iconUrl: url })}
+                placeholder="输入图标 URL 或点击上传"
               />
             </div>
 

@@ -42,3 +42,12 @@ CLAUDE.md
 .claude/settings.local.json
 
 .sisyphus/*
+.omc/*
+.serena/
+
+# uploads data
+/data/
+
+# screenshots
+*.png
+!public/**/*.png
